@@ -1,0 +1,200 @@
+@extends('admin.layouts.layouts')
+
+@section('title', 'Patient Profile - ' . ($patient->patient_name ?? 'Patient'))
+
+@section('content')
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<style>
+    label.form-label {
+        font-weight: 600;
+        color: #5a6268;
+        display: block;
+        margin-bottom: 4px;
+        font-size: 13px;
+    }
+
+    .form-control, .form-select {
+        padding: 6px 10px;
+        font-size: 13px;
+        border-radius: 6px;
+    }
+
+    .mb-3 {
+        margin-bottom: 1rem !important;
+    }
+    /* Diet Plan Action Buttons */
+    .diet-plan-actions {
+        display: flex;
+        gap: 5px;
+    }
+
+    .diet-plan-actions .btn {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+    }
+
+    .diet-plan-actions .btn i {
+        font-size: 12px;
+    }
+
+    .btn-info.print-diet-btn {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+    }
+
+    .btn-info.print-diet-btn:hover {
+        background-color: #0b5ed7;
+        border-color: #0a58ca;
+    }
+
+    /* Meal Row in Edit Modal */
+    .meal-row {
+        background: var(--bg-main);
+        transition: all 0.3s ease;
+    }
+
+    .meal-row:hover {
+        background: var(--bg-hover);
+    }
+
+    .meal-row .remove-meal-row {
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .meal-row .remove-meal-row:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+
+    .transformations-gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .image-card {
+        background: var(--bg-card);
+        border-radius: 8px;
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--border-subtle);
+        overflow: hidden;
+    }
+
+    .image-card-header {
+        background: var(--bg-main);
+        padding: 12px 15px;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .image-card-header h5 {
+        margin: 0;
+        font-size: 16px;
+        color: var(--accent-solid);
+    }
+
+    .image-card-body {
+        padding: 15px;
+    }
+
+    .image-container {
+        position: relative;
+        margin-bottom: 10px;
+    }
+
+    .gallery-image {
+        width: 100%;
+        height: 250px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid var(--border-subtle);
+    }
+
+    .image-details {
+        background: var(--bg-main);
+        padding: 10px;
+        border-radius: 4px;
+        font-size: 13px;
+        border: 1px solid var(--border-subtle);
+    }
+
+    .dimension-label {
+        font-weight: 600;
+        color: var(--text-muted);
+        margin-right: 5px;
+    }
+
+    .dimension-value {
+        color: var(--accent-solid);
+        font-weight: 500;
+    }
+
+    .no-image-placeholder {
+        height: 250px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg-main);
+        border: 2px dashed var(--border-subtle);
+        border-radius: 4px;
+        color: var(--text-muted);
+        font-style: italic;
+    }
+
+    /* Modal styles for image zoom */
+    .image-modal .modal-dialog {
+        max-width: 90%;
+        max-height: 90vh;
+    }
+
+    .image-modal .modal-body {
+        text-align: center;
+        padding: 0;
+    }
+
+    .zoomed-image {
+        max-width: 100%;
+        max-height: 80vh;
+        object-fit: contain;
+    }
+
+    /* Grid layout for multiple images */
+    .images-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+
+    @media (max-width: 768px) {
+        .images-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .transformations-gallery {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Image tags */
+    .image-tags {
+        margin-top: 8px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .image-tag {
+        background: #e9ecef;
+        padding: 3px 8px;
+        border-radius: 12px;

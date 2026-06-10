@@ -1,0 +1,106 @@
+1234:                                                    @if ($profileImagePath)
+1240:                                                    @endif
+1305:                                                @if (count($programDetails) > 0)
+1306:                                                @foreach ($currentPrograms as $index => $program)
+1339:                                                @endforeach
+1346:                                                @endif
+1350:                                        @if ($totalPrograms > $perPage)
+1358:                                                @if ($currentPage <= 1)
+1363:                                                    @endif
+1366:                                                        @if ($i==$currentPage)
+1372:                                                        @endif
+1375:                                                        @if ($currentPage >= $totalProgramPages)
+1380:                                                        @endif
+1383:                                        @endif
+1417:                                                @if (!empty($monthlyAssessments) && count($monthlyAssessments) > 0)
+1418:                                                @foreach ($monthlyAssessments as $index => $assessment)
+1450:                                                @endforeach
+1457:                                                @endif
+1467:                            @if (!empty($monthlyAssessments) && count($monthlyAssessments) > 0)
+1491:                                                    @foreach ($monthlyAssessments as $index => $assessment)
+1503:                                                    @endforeach
+1532:                                                    @foreach ($monthlyAssessments as $index => $assessment)
+1542:                                                    @endforeach
+1549:                            @endif
+1553:                        @if (!empty($progressReports) && count($progressReports) > 0)
+1561:                        @if ($lymphysisReports->count() > 0)
+1585:                                        @foreach ($lymphysisReports as $index => $report)
+1611:                                        @endforeach
+1616:                        @endif
+1624:                        @if ($detoxReports->count() > 0)
+1648:                                        @foreach ($detoxReports as $index => $report)
+1674:                                        @endforeach
+1679:                        @endif
+1687:                        @if ($breastReports->count() > 0)
+1711:                                        @foreach ($breastReports as $index => $report)
+1737:                                        @endforeach
+1742:                        @endif
+1750:                        @if ($faceReports->count() > 0)
+1774:                                        @foreach ($faceReports as $index => $report)
+1800:                                        @endforeach
+1805:                        @endif
+1813:                        @if ($relaxationReports->count() > 0)
+1837:                                        @foreach ($relaxationReports as $index => $report)
+1863:                                        @endforeach
+1868:                        @endif
+1876:                        @if ($bodyPartReports->count() > 0)
+1902:                                        @foreach ($bodyPartReports as $index => $report)
+1930:                                        @endforeach
+1935:                        @endif
+1936:                        @endif
+1956:                                    @if (!empty($dietPlans) && $dietPlans->count() > 0)
+1958:                                        @foreach ($dietPlans as $plan)
+2029:                                                @if (!empty($filteredMenus) && count($filteredMenus) > 0)
+2049:                                                            @foreach ($filteredMenus as $menu)
+2052:                                                                    @if (!empty($menu['time']))
+2058:                                                                    @endif
+2067:                                                                    @if (!empty($recipeList))
+2069:                                                                        @foreach ($recipeList as $recipe)
+2074:                                                                        @endforeach
+2078:                                                                    @endif
+2081:                                                                    @if (!empty($menu['quantity']))
+2085:                                                                    @endif
+2088:                                                                    @if (!empty($menu['notes']))
+2092:                                                                    @endif
+2095:                                                            @endforeach
+2104:                                                @endif
+2106:                                                @if (!empty($plan->general_notes))
+2115:                                                @endif
+2117:                                                @if (!empty($plan->next_follow_up_date))
+2125:                                                @endif
+2128:                                        @endforeach
+2139:                                    @endif
+2176:                                            @if (count($beforeImages) > 0)
+2178:                                                @foreach ($beforeImages as $image)
+2182:                                                        @if ($image['date'] || $image['weight'] || $image['height'])
+2184:                                                            @if ($image['date'])
+2187:                                                            @endif
+2188:                                                            @if ($image['weight'])
+2191:                                                            @endif
+2192:                                                            @if ($image['height'])
+2195:                                                            @endif
+2197:                                                        @endif
+2209:                                                        @if ($image['notes'])
+2213:                                                        @endif
+2216:                                                @endforeach
+2222:                                            @endif
+2238:                                            @if (count($afterImages) > 0)
+2240:                                                @foreach ($afterImages as $image)
+2244:                                                        @if ($image['date'] || $image['weight'] || $image['height'])
+2246:                                                            @if ($image['date'])
+2249:                                                            @endif
+2250:                                                            @if ($image['weight'])
+2253:                                                            @endif
+2254:                                                            @if ($image['height'])
+2257:                                                            @endif
+2259:                                                        @endif
+2271:                                                        @if ($image['notes'])
+2275:                                                        @endif
+2278:                                                @endforeach
+2284:                                            @endif
+4166:                                @foreach ($measurements as $item)
+4179:                                @endforeach
+4237:                                @foreach ($bcaMeasurements as $item)
+4250:                                @endforeach
+4294:                                @foreach ($muscleMeasurements as $item)
+4307:                                @endforeach
