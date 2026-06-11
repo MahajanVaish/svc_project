@@ -127,44 +127,46 @@
 
                 if ($optIds->isNotEmpty()) {
                     // 1. Fetch from programs_array (JSON array from Diet H/O)
-                    $pArray = \App\Models\OptMeta::whereIn('opt_id', $optIds)
+                    $pArrays = \App\Models\OptMeta::whereIn('opt_id', $optIds)
                         ->where('meta_key', 'programs_array')
-                        ->orderByDesc('id')
-                        ->value('meta_value');
+                        ->whereNotNull('meta_value')
+                        ->where('meta_value', '!=', '')
+                        ->where('meta_value', '!=', '[]')
+                        ->pluck('meta_value');
 
-                    if ($pArray) {
+                    foreach ($pArrays as $pArray) {
                         $decodedProgs = json_decode($pArray, true) ?: [];
                         $programs = array_merge($programs, collect($decodedProgs)->pluck('program')->filter()->toArray());
                     }
 
                     // 2. Fetch from selected_program (string from Diet H/O)
-                    $single = \App\Models\OptMeta::whereIn('opt_id', $optIds)
+                    $singles = \App\Models\OptMeta::whereIn('opt_id', $optIds)
                         ->where('meta_key', 'selected_program')
-                        ->orderByDesc('id')
-                        ->value('meta_value');
-                    if ($single) {
-                        $programs[] = $single;
-                    }
+                        ->whereNotNull('meta_value')
+                        ->where('meta_value', '!=', '')
+                        ->pluck('meta_value');
+                    $programs = array_merge($programs, $singles->toArray());
 
                     // 3. Fetch from program_name (from inquiry registration)
-                    $progName = \App\Models\OptMeta::whereIn('opt_id', $optIds)
+                    $progNames = \App\Models\OptMeta::whereIn('opt_id', $optIds)
                         ->where('meta_key', 'program_name')
-                        ->orderByDesc('id')
-                        ->value('meta_value');
-                    if ($progName) {
+                        ->whereNotNull('meta_value')
+                        ->where('meta_value', '!=', '')
+                        ->pluck('meta_value');
+                    
+                    foreach ($progNames as $progName) {
                         $progNameClean = preg_replace('/(\d),(\d)/', '$1$2', $progName);
                         $splitNames = array_map('trim', explode(',', $progNameClean));
                         $programs = array_merge($programs, $splitNames);
                     }
 
                     // 4. Fetch from online_program_label (from inquiry registration)
-                    $onlineLabel = \App\Models\OptMeta::whereIn('opt_id', $optIds)
+                    $onlineLabels = \App\Models\OptMeta::whereIn('opt_id', $optIds)
                         ->where('meta_key', 'online_program_label')
-                        ->orderByDesc('id')
-                        ->value('meta_value');
-                    if ($onlineLabel) {
-                        $programs[] = $onlineLabel;
-                    }
+                        ->whereNotNull('meta_value')
+                        ->where('meta_value', '!=', '')
+                        ->pluck('meta_value');
+                    $programs = array_merge($programs, $onlineLabels->toArray());
                 }
 
                 // Clean and deduplicate programs

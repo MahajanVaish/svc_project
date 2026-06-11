@@ -68,7 +68,8 @@ class InquiryDietChartController extends Controller
         $optMeta = []; // For repopulating health metrics and payment fields on edit
 
         if ($request->id) {
-            $lead = AccInquiry::find($request->id);
+            // Use withoutGlobalScopes to ensure the record is found regardless of branch restriction
+            $lead = AccInquiry::withoutGlobalScopes()->find($request->id);
 
             // Load existing statuses - use the casted array directly
             if ($lead) {
@@ -82,19 +83,60 @@ class InquiryDietChartController extends Controller
                 }
 
                 // Load latest Opt meta for health metrics and payment fields
-                $latestOpt = Opt::where('patient_id', $lead->patient_id)
-                    ->where(function ($q) {
-                        $q->whereNull('delete_status')
-                          ->orWhere('delete_status', '')
-                          ->orWhere('delete_status', '0');
-                    })
-                    ->orderByDesc('id')
-                    ->first();
+                // Search by BOTH the string patient_id AND the numeric acc_inquirys.id
+                // to handle old records where patient_id may not be set
+                $latestOpt = null;
+
+                if (!empty($lead->patient_id)) {
+                    $latestOpt = Opt::where('patient_id', $lead->patient_id)
+                        ->where(function ($q) {
+                            $q->whereNull('delete_status')
+                              ->orWhere('delete_status', '')
+                              ->orWhere('delete_status', '0');
+                        })
+                        ->orderByDesc('id')
+                        ->first();
+                }
+
+                // Fallback: old data may have Opt saved with the numeric acc_inquirys.id as patient_id
+                if (!$latestOpt) {
+                    $latestOpt = Opt::where('patient_id', (string) $lead->id)
+                        ->where(function ($q) {
+                            $q->whereNull('delete_status')
+                              ->orWhere('delete_status', '')
+                              ->orWhere('delete_status', '0');
+                        })
+                        ->orderByDesc('id')
+                        ->first();
+                }
 
                 if ($latestOpt) {
                     $metaRecords = OptMeta::where('opt_id', $latestOpt->id)->get();
                     foreach ($metaRecords as $meta) {
                         $optMeta[$meta->meta_key] = $meta->meta_value;
+                    }
+                }
+
+                // If health metrics still empty, fill from any Opt record linked by patient name
+                // (covers patients imported from old system with mismatched patient_id)
+                if (empty($optMeta['diet']) && empty($optMeta['exercise']) && !empty($lead->patient_name)) {
+                    $nameOpt = Opt::where('patient_name', $lead->patient_name)
+                        ->where(function ($q) {
+                            $q->whereNull('delete_status')
+                              ->orWhere('delete_status', '')
+                              ->orWhere('delete_status', '0');
+                        })
+                        ->orderByDesc('id')
+                        ->first();
+
+                    if ($nameOpt) {
+                        $metaRecords = OptMeta::where('opt_id', $nameOpt->id)->get();
+                        foreach ($metaRecords as $meta) {
+                            // Only fill keys that are missing
+                            if (!isset($optMeta[$meta->meta_key])) {
+                                $optMeta[$meta->meta_key] = $meta->meta_value;
+                            }
+                        }
                     }
                 }
             }
@@ -997,7 +1039,6 @@ public function store(Request $request)
                 'dinner',
                 'brunch',
                 'snacks',
-                'early_morning_meal',
                 'water_intake',
                 'water_unit',
                 'fasting_day',
@@ -1241,7 +1282,6 @@ public function store(Request $request)
                 'dinner',
                 'brunch',
                 'snacks',
-                'early_morning_meal',
                 'water_intake',
                 'water_unit',
                 'fasting_day',

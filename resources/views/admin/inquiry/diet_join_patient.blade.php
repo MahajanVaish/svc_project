@@ -1062,9 +1062,7 @@
                                         <input type="text" name="early_morning" class="form-control-line"
                                             value="{{ $latestMeta['early_morning'] ?? '' }}">
 
-                                        <label>Early Morning Meal:</label>
-                                        <input type="text" name="early_morning_meal" class="form-control-line"
-                                            value="{{ $latestMeta['early_morning_meal'] ?? '' }}">
+                                        
                                     </div>
 
                                     <!-- Row 4: Breakfast -->
@@ -2388,11 +2386,6 @@
                                             <div class="col-md-6">
                                                 <label class="form-label small fw-bold">Early Morning</label>
                                                 <input type="text" name="early_morning"
-                                                    class="form-control form-control-sm">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label small fw-bold">Early Morning Meal</label>
-                                                <input type="text" name="early_morning_meal"
                                                     class="form-control form-control-sm">
                                             </div>
                                             <div class="col-md-6">

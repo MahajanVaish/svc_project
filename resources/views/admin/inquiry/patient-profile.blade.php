@@ -2269,12 +2269,6 @@
                                                                     value="{{ formatValue($optMeta['time'] ?? '') }}" disabled>
                                                             </div>
                                                             <div class="col-md-3 py-3">
-                                                                <div class="label-text">EARLY MORNING</div>
-                                                                <input class="input-field" type="text"
-                                                                    value="{{ formatValue($optMeta['early_morning_meal'] ?? '') }}"
-                                                                    disabled>
-                                                            </div>
-                                                            <div class="col-md-3 py-3">
                                                                 <div class="label-text">BREAKFAST</div>
                                                                 <input class="input-field" type="text"
                                                                     value="{{ formatValue($optMeta['breakfast'] ?? '') }}" disabled>
