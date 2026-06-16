@@ -335,41 +335,57 @@ class DietPlanController extends Controller
                 ?? DB::table('hydra_inquiries')->where('patient_id', $pId)->first();
 
             if ($patient) {
-                $patientName = $patient->patient_name ?? ($patient->patient_f_name ?? null);
+                // ACC patients have no patient_name column — build full name from parts
+                if (!empty($patient->patient_name)) {
+                    $patientName = $patient->patient_name;
+                } elseif (!empty($patient->patient_f_name)) {
+                    $patientName = trim(
+                        ($patient->patient_f_name ?? '') . ' ' .
+                        ($patient->patient_m_name ?? '') . ' ' .
+                        ($patient->patient_l_name ?? '')
+                    );
+                }
             }
 
             $timeSearchMenusArray = [];
             if ($request->has('time_search_menus')) {
                 foreach ($request->time_search_menus as $index => $menu) {
-                    // Check if there's any data in this row
-                    $hasTime = !empty($menu['time']);
-                    $hasSearchMenu = !empty($menu['selected_recipes']) || !empty($menu['search_menu']);
-                    $hasNotes = !empty($menu['notes']);
+                    $hasTime     = !empty($menu['time']);
+                    $hasRecipes  = !empty($menu['recipes']) || !empty($menu['selected_recipes']) || !empty($menu['search_menu']);
+                    $hasNotes    = !empty($menu['notes']);
                     $hasQuantity = !empty($menu['quantity']);
 
-                    if ($hasTime || $hasSearchMenu || $hasNotes || $hasQuantity) {
-                        // Use selected_recipes if available, otherwise use search_menu
-                        $selectedRecipesRaw = !empty($menu['selected_recipes']) ? $menu['selected_recipes'] : ($menu['search_menu'] ?? '');
+                    if ($hasTime || $hasRecipes || $hasNotes || $hasQuantity) {
 
-                        // Attempt to decode JSON if it's structured data
-                        $decodedRecipes = json_decode($selectedRecipesRaw, true);
-                        if (json_last_error() === JSON_ERROR_NONE && is_array($decodedRecipes)) {
-                            // Structured JSON format from new UI
-                            $recipeNames = array_column($decodedRecipes, 'name');
-                            $searchMenuValue = implode(', ', $recipeNames);
-                            $recipesList = $decodedRecipes;
-                        } else {
-                            // Old comma-separated format or raw string
-                            $searchMenuValue = $selectedRecipesRaw;
-                            $recipesList = null;
+                        $recipesList    = null;
+                        $searchMenuValue = '';
+
+                        // 1. recipes array sent directly from JSON payload (new JS path)
+                        if (!empty($menu['recipes']) && is_array($menu['recipes'])) {
+                            $recipesList    = $menu['recipes'];
+                            $searchMenuValue = implode(', ', array_column($recipesList, 'name'));
+
+                        // 2. selected_recipes as JSON string (fallback)
+                        } elseif (!empty($menu['selected_recipes'])) {
+                            $decoded = json_decode($menu['selected_recipes'], true);
+                            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                                $recipesList    = $decoded;
+                                $searchMenuValue = implode(', ', array_column($recipesList, 'name'));
+                            } else {
+                                $searchMenuValue = $menu['selected_recipes'];
+                            }
+
+                        // 3. plain text search_menu (legacy)
+                        } elseif (!empty($menu['search_menu'])) {
+                            $searchMenuValue = $menu['search_menu'];
                         }
 
                         $timeSearchMenusArray[] = [
-                            'time' => $menu['time'] ?? '',
+                            'time'        => $menu['time'] ?? '',
                             'search_menu' => $searchMenuValue,
-                            'recipes' => $recipesList,
-                            'quantity' => isset($menu['quantity']) && is_numeric($menu['quantity']) ? $menu['quantity'] + 0 : ($menu['quantity'] ?? ''),
-                            'notes' => $menu['notes'] ?? ''
+                            'recipes'     => $recipesList ?? [],
+                            'quantity'    => $menu['quantity'] ?? '',
+                            'notes'       => $menu['notes'] ?? '',
                         ];
                     }
                 }
@@ -507,36 +523,43 @@ class DietPlanController extends Controller
             $timeSearchMenusArray = [];
             if ($request->has('time_search_menus')) {
                 foreach ($request->time_search_menus as $index => $menu) {
-                    // Check if there's any data in this row
-                    $hasTime = !empty($menu['time']);
-                    $hasSearchMenu = !empty($menu['selected_recipes']) || !empty($menu['search_menu']);
-                    $hasNotes = !empty($menu['notes']);
+                    $hasTime     = !empty($menu['time']);
+                    $hasRecipes  = !empty($menu['recipes']) || !empty($menu['selected_recipes']) || !empty($menu['search_menu']);
+                    $hasNotes    = !empty($menu['notes']);
                     $hasQuantity = !empty($menu['quantity']);
 
-                    if ($hasTime || $hasSearchMenu || $hasNotes || $hasQuantity) {
-                        // Use selected_recipes if available, otherwise use search_menu
-                        $selectedRecipesRaw = !empty($menu['selected_recipes']) ? $menu['selected_recipes'] : ($menu['search_menu'] ?? '');
+                    if ($hasTime || $hasRecipes || $hasNotes || $hasQuantity) {
 
-                        // Attempt to decode JSON if it's structured data
-                        $decodedRecipes = json_decode($selectedRecipesRaw, true);
-                        if (json_last_error() === JSON_ERROR_NONE && is_array($decodedRecipes)) {
-                            // Structured JSON format from new UI
-                            $recipeNames = array_column($decodedRecipes, 'name');
-                            $searchMenuValue = implode(', ', $recipeNames);
-                            $recipesList = $decodedRecipes;
-                        } else {
-                            // Old comma-separated format or raw string
-                            $searchMenuValue = $selectedRecipesRaw;
-                            $recipesList = null;
+                        $recipesList    = null;
+                        $searchMenuValue = '';
+
+                        // 1. recipes array sent directly from JSON payload (new JS path)
+                        if (!empty($menu['recipes']) && is_array($menu['recipes'])) {
+                            $recipesList    = $menu['recipes'];
+                            $searchMenuValue = implode(', ', array_column($recipesList, 'name'));
+
+                        // 2. selected_recipes as JSON string (fallback)
+                        } elseif (!empty($menu['selected_recipes'])) {
+                            $decoded = json_decode($menu['selected_recipes'], true);
+                            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                                $recipesList    = $decoded;
+                                $searchMenuValue = implode(', ', array_column($recipesList, 'name'));
+                            } else {
+                                $searchMenuValue = $menu['selected_recipes'];
+                            }
+
+                        // 3. plain text search_menu (legacy)
+                        } elseif (!empty($menu['search_menu'])) {
+                            $searchMenuValue = $menu['search_menu'];
                         }
 
                         $timeSearchMenusArray[] = [
-                            'time' => $menu['time'] ?? '',
-                            'search_menu' => $searchMenuValue,
+                            'time'             => $menu['time'] ?? '',
+                            'search_menu'      => $searchMenuValue,
                             'selected_recipes' => $searchMenuValue,
-                            'recipes' => $recipesList,
-                            'quantity' => isset($menu['quantity']) && is_numeric($menu['quantity']) ? $menu['quantity'] + 0 : ($menu['quantity'] ?? ''),
-                            'notes' => $menu['notes'] ?? ''
+                            'recipes'          => $recipesList ?? [],
+                            'quantity'         => $menu['quantity'] ?? '',
+                            'notes'            => $menu['notes'] ?? '',
                         ];
                     }
                 }

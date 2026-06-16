@@ -60,6 +60,43 @@ class InquiryDietChartController extends Controller
     return view('admin.inquiry.patient_diet_chart', compact('inquiries'));
 }
 
+public function dietChartSearch(Request $request)
+{
+    $query = AccInquiry::where(function ($q) {
+            $q->whereNull('delete_status')
+              ->orWhere('delete_status', '0');
+        })
+        ->where(function ($q) {
+            $q->whereJsonContains('status_history', 'Diet Chart')
+              ->orWhereJsonContains('status_history', 'Active')
+              ->orWhere(function ($sub) {
+                  $sub->where(function ($s) {
+                          $s->whereNull('status_history')
+                            ->orWhere('status_history', '')
+                            ->orWhere('status_history', '[]');
+                      })
+                      ->where(function ($s) {
+                          $s->where('user_status', 'Diet Chart')
+                            ->orWhere('user_status', 'Active');
+                      });
+              });
+        });
+
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->where(function ($q) use ($search) {
+            $q->where('patient_id', 'like', "%$search%")
+              ->orWhere('patient_f_name', 'like', "%$search%")
+              ->orWhere('phone_no', 'like', "%$search%")
+              ->orWhere('address', 'like', "%$search%")
+              ->orWhere('diagnosis', 'like', "%$search%");
+        });
+    }
+
+    $inquiries = $query->orderBy('id', 'desc')->paginate(10);
+
+    return view('admin.inquiry.diet_chart_table', compact('inquiries'));
+}
 
     public function create(Request $request)
     {
@@ -1577,6 +1614,11 @@ public function patientProfile($id)
                 // Also match by patient_name as last resort
                 if ($patient->patient_name) {
                     $query->orWhere('patient_name', $patient->patient_name);
+                }
+                // ACC patients may have diet plans saved with only patient_f_name
+                // (legacy bug where patient_name fell back to first name only)
+                if (!empty($patient->patient_f_name)) {
+                    $query->orWhere('patient_name', trim($patient->patient_f_name));
                 }
             })
             ->orderBy('date', 'desc')

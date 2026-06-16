@@ -240,6 +240,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Diet Chart Routes - Accessible to all branch users
     Route::get('/admin/diet-chart', [InquiryDietChartController::class, 'dietChart'])->name('diet.chart');
+    Route::get('/admin/diet-chart/search', [InquiryDietChartController::class, 'dietChartSearch'])->name('diet.chart.search');
     Route::get('/admin/add-inquiry', [InquiryDietChartController::class, 'create'])->name('add.inquiry');
     Route::post('/admin/add-inquiry', [InquiryDietChartController::class, 'store'])->name('store.inquiry');
     Route::get('/admin/get-patients-by-branch', [InquiryDietChartController::class, 'getPatientsByBranch'])->name('get.patients.by.branch');

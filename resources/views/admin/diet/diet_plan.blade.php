@@ -825,6 +825,36 @@
                     return;
                 }
 
+                const timeSearchMenus = [];
+                $('.search-menu-row').each(function (index) {
+                    const time = $(this).find('.time-search').val();
+                    const hiddenInput = $(this).find('.selected-recipes-input');
+                    const selectedRecipesRaw = hiddenInput.val() || '';
+                    const searchMenuInput = $(this).find('.search-menu').val();
+                    const quantity = $(this).find('.quantity-input').val();
+                    const notes = $(this).find('textarea').val();
+
+                    if (time || selectedRecipesRaw || searchMenuInput || quantity || notes) {
+                        // Parse the JSON recipes array stored in the hidden input
+                        let recipesArray = [];
+                        try {
+                            const parsed = JSON.parse(selectedRecipesRaw);
+                            if (Array.isArray(parsed)) recipesArray = parsed;
+                        } catch(e) {
+                            // Not JSON — treat as plain text
+                        }
+
+                        timeSearchMenus.push({
+                            time: time || '',
+                            search_menu: searchMenuInput || '',
+                            selected_recipes: selectedRecipesRaw || '',
+                            recipes: recipesArray,
+                            quantity: quantity || '',
+                            notes: notes || ''
+                        });
+                    }
+                });
+
                 const formData = {
                     _token: '{{ csrf_token() }}',
                     branch_id: branchId,
@@ -833,27 +863,12 @@
                     diet_name: dietName,
                     general_notes: $('#general_notes').val(),
                     next_follow_up_date: $('#next_follow_up_date').val(),
-                    time_search_menus: []
+                    diet: $('#diet').val() || '',
+                    exercise: $('#exercise').val() || '',
+                    sleep: $('#sleep').val() || '',
+                    water: $('#water').val() || '',
+                    time_search_menus: timeSearchMenus
                 };
-
-                $('.search-menu-row').each(function (index) {
-                    const time = $(this).find('.time-search').val();
-                    const selectedRecipes = $(this).find('.selected-recipes-input').val();
-                    const searchMenuInput = $(this).find('.search-menu').val();
-                    const quantity = $(this).find('.quantity-input').val();
-                    const notes = $(this).find('textarea').val();
-
-                    if (time || selectedRecipes || searchMenuInput || quantity || notes) {
-                        const menuObject = {
-                            time: time || '',
-                            search_menu: searchMenuInput || '',
-                            selected_recipes: selectedRecipes || '',
-                            quantity: quantity || '',
-                            notes: notes || ''
-                        };
-                        formData.time_search_menus.push(menuObject);
-                    }
-                });
 
                 console.log('Form Data for submission:', formData);
 
@@ -864,7 +879,8 @@
                 $.ajax({
                     url: '{{ route("diet.plan.store") }}',
                     type: 'POST',
-                    data: formData,
+                    contentType: 'application/json',
+                    data: JSON.stringify(formData),
                     success: function (response) {
                         if (response.success) {
                             Swal.fire({

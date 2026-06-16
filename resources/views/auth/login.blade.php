@@ -384,7 +384,7 @@
     <div class="full-screen-container">
         <div class="image-section">
             <div class="image-container">
-                <img src="/images/figure-n-fit-login.png" alt="Login Illustration">
+                <img src="{{ asset('/images/figure-n-fit-login.png') }}" alt="Login Illustration">
             </div>
         </div>
 

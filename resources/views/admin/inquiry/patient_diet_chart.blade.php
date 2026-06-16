@@ -403,7 +403,7 @@
                 tableBody.css('opacity', '0.5');
 
                 $.ajax({
-                    url: "{{ route('diet.chart') }}",
+                    url: "{{ route('diet.chart.search') }}",
                     method: 'GET',
                     data: { search: query },
                     success: function (response) {
