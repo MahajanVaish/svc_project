@@ -159,7 +159,16 @@
                                     <input type="text" class="form-control" name="pod_bmr" id="bmiInput"
                                         value="{{ $latestMeta['pod_bmr'] ?? $patient->bmi ?? '' }}" readonly>
                                 </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">BMR:</label>
+                                    <input type="text" class="form-control" name="pod_bmr_value" id="bmrValueInput"
+                                        value="{{ $latestMeta['pod_bmr_value'] ?? '' }}">
+                                </div>
                             </div>
+                            
+                            <!-- Hidden inputs for BMR calculation -->
+                            <input type="hidden" id="patientAge" value="{{ $patient->age ?? 0 }}">
+                            <input type="hidden" id="patientGender" value="{{ $patient->gender ?? 'Other' }}">
                         </div>
                     </div>
 
@@ -184,7 +193,7 @@
                                 </div>
                                 <div class="col-md-3 mb-3">
                                     <label class="form-label">Calories</label>
-                                    <input type="text" class="form-control" name="pod_calories"
+                                    <input type="text" class="form-control" name="pod_calories" id="caloriesInput"
                                         value="{{ $latestMeta['pod_calories'] ?? '' }}">
                                 </div>
                                 <div class="col-md-3 mb-3">
@@ -634,7 +643,7 @@
                                 <!-- Physical Activity -->
                                 <div class="form-field">
                                     <label for="physical_activity">Physical Activity</label>
-                                    <select id="physical_activity" name="physical_activity" class="form-select">
+                                    <select id="physicalActivityInput" name="physical_activity" class="form-select">
                                         <option value="" {{ ($latestMeta['physical_activity'] ?? '') == '' ? 'selected' : '' }}>Select Activity</option>
                                         <option value="Sedentary (Very Low Activity)" {{ ($latestMeta['physical_activity'] ?? '') == 'Sedentary (Very Low Activity)' ? 'selected' : '' }}>Sedentary (Very Low
                                             Activity)</option>
@@ -1228,11 +1237,79 @@
             const heightInput = document.getElementById('heightInput');
             const weightInput = document.getElementById('weightInput');
 
-            if (heightInput) heightInput.addEventListener('input', calculateBMI);
-            if (weightInput) weightInput.addEventListener('input', calculateBMI);
+            if (heightInput) {
+                heightInput.addEventListener('input', function() {
+                    calculateBMI();
+                    calculateBMRAndTDEE();
+                });
+            }
+            
+            if (weightInput) {
+                weightInput.addEventListener('input', function() {
+                    calculateBMI();
+                    calculateBMRAndTDEE();
+                });
+            }
+            
+            const physicalActivityInput = document.getElementById('physicalActivityInput');
+            if (physicalActivityInput) {
+                physicalActivityInput.addEventListener('change', function () {
+                    calculateBMRAndTDEE();
+                });
+            }
+
+            // ─── AUTO-CALCULATE BMR AND TDEE (CALORIES REQ) ─────────────────────
+            function calculateBMRAndTDEE() {
+                const hEl = document.getElementById('heightInput');
+                const wEl = document.getElementById('weightInput');
+                const bmrEl = document.getElementById('bmrValueInput');
+                const calEl = document.getElementById('caloriesInput');
+                const ageEl = document.getElementById('patientAge');
+                const genderEl = document.getElementById('patientGender');
+                const activityEl = document.getElementById('physicalActivityInput');
+
+                if (!hEl || !wEl || !bmrEl || !calEl || !ageEl || !genderEl) return;
+
+                const height = parseFloat(hEl.value);
+                const weight = parseFloat(wEl.value);
+                const age = parseInt(ageEl.value) || 0;
+                const gender = genderEl.value;
+
+                if (height && weight && height > 0 && age > 0) {
+                    let bmr = 0;
+                    if (gender.toLowerCase() === 'female') {
+                        bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
+                    } else {
+                        // Default to Male formula
+                        bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
+                    }
+                    
+                    bmrEl.value = Math.round(bmr);
+
+                    if (activityEl && activityEl.value) {
+                        const activityMultipliers = {
+                            "Sedentary (Very Low Activity)": 1.2,
+                            "Lightly Active": 1.375,
+                            "Moderately Active": 1.55,
+                            "Very Active": 1.725,
+                            "Extra Active": 1.9
+                        };
+                        
+                        const multiplier = activityMultipliers[activityEl.value] || 1.2;
+                        const tdee = bmr * multiplier;
+                        calEl.value = Math.round(tdee);
+                    } else {
+                        calEl.value = '';
+                    }
+                } else {
+                    bmrEl.value = '';
+                    calEl.value = '';
+                }
+            }
 
             // Initial calculation
             calculateBMI();
+            calculateBMRAndTDEE();
 
             // Auto-calculate due payment
             function calculateDuePayment() {

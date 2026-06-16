@@ -865,7 +865,7 @@
                                     <select class="form-select" name="payment_method" id="input-pay-method">
                                         <option value="Cash">Cash</option>
                                         <option value="Card">Card</option>
-                                        <option value="UPI">UPI</option>
+                                        <option value="UPI">Google Pay</option>
                                         <option value="Bank Transfer">Bank Transfer</option>
                                     </select>
                                 </div>

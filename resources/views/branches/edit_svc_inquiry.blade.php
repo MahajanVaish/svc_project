@@ -76,10 +76,17 @@
     input, select, textarea {
         width: 100%;
         padding: 10px 12px;
-        border: 1px solid #bdc3c7;
+        border: 1px solid #ced4da;
         border-radius: 4px;
         font-size: 14px;
-        font-family: Arial, sans-serif;
+        font-family: inherit;
+        transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+    }
+
+    input:focus, select:focus, textarea:focus {
+        border-color: #28a745;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
     }
     textarea {
         resize: vertical;
@@ -218,7 +225,7 @@
             white-space: nowrap;
             font-size: 16px;
             font-weight: 500;
-            color: #666;
+            color: #28a745;
             margin-right: 10px;
         }
 
@@ -473,7 +480,7 @@
 
     .section-divider .title {
         font-weight: 700;
-        color: #2c3e50;
+        color: #28a745;
         font-size: 1rem;
         padding-right: 15px;
         text-transform: uppercase;
@@ -710,7 +717,14 @@
                                 <input type="hidden" id="branch_id" name="branch_id" value="{{ $patient->branch_id }}">
                                 <input type="hidden" name="branch" value="SVC">
 
-                                <div class="section-divider">Personal Information</div>
+                                <div class="section-divider mt-4">
+                                    <div class="title">Personal Information</div>
+                                    <div class="line"></div>
+                                    <div class="icon-box" onclick="toggleSection(this, 'personal-info-section')">
+                                        <i class="bi bi-dash-lg"></i>
+                                    </div>
+                                </div>
+                                <div class="personal-info-section">
                                 <div class="pt-4">
                                     <div class="pro_filed d-sm-block d-md-flex">
                                         <div class="form">
@@ -872,8 +886,19 @@
                                             </div>
                                         </div>
                                     </div>
+                                    </div>
 
-                                    <div class="section-divider">Medical Information</div>
+                                    <div class="section-divider mt-4">
+                                        <div class="title">Medical Information</div>
+                                        <div class="line"></div>
+                                        @php
+                                            $hasMedicalInfo = !empty($patient->getMeta('investigation')) || !empty($patient->getMeta('past_history')) || !empty($patient->getMeta('family_history')) || !empty($meta['doctor_id']);
+                                        @endphp
+                                        <div class="icon-box" onclick="toggleSection(this, 'medical-info-section')">
+                                            <i class="bi {{ $hasMedicalInfo ? 'bi-dash-lg' : 'bi-plus-lg' }}"></i>
+                                        </div>
+                                    </div>
+                                    <div class="medical-info-section" style="{{ $hasMedicalInfo ? '' : 'display: none;' }}">
 
                                     <div class="pro_filed d-sm-block d-md-flex pt-3">
                                         <div class="form">
@@ -912,15 +937,19 @@
                                             </div>
                                         </div>
                                     </div>
+                                    </div>
 
                                     <div class="section-divider mt-4">
                                         <div class="title" style="color: #28a745;">Lipid Profile :</div>
                                         <div class="line"></div>
+                                        @php
+                                            $hasLipidValues = $patient->getMeta('s_cholesterol') || $patient->getMeta('STriglyceride') || $patient->getMeta('HDL') || $patient->getMeta('LDL') || $patient->getMeta('VLDL') || $patient->getMeta('non_hdl_c') || $patient->getMeta('chol_hdl_ratio');
+                                        @endphp
                                         <div class="icon-box" onclick="toggleSection(this, 'lipid-profile-section')">
-                                            <i class="bi bi-plus-lg" id="lipid-toggle-icon"></i>
+                                            <i class="bi {{ $hasLipidValues ? 'bi-dash-lg' : 'bi-plus-lg' }}" id="lipid-toggle-icon"></i>
                                         </div>
                                     </div>
-                                    <div class="lipid-profile-section" style="display: none;">
+                                    <div class="lipid-profile-section" style="{{ $hasLipidValues ? '' : 'display: none;' }}">
                                     <div class="row pt-3">
                                         <div class="col-md-3 mb-3">
                                             <label for="s_cholesterol">S.Cholesterol</label>
@@ -963,12 +992,15 @@
                                     <div class="section-divider mt-4">
                                         <div class="title">Laboratory Investigation</div>
                                         <div class="line"></div>
+                                        @php
+                                            $hasLabValues = $patient->getMeta('hb') || $patient->getMeta('tc') || $patient->getMeta('pc') || $patient->getMeta('MP') || $patient->getMeta('HB1AC') || $patient->getMeta('fbs') || $patient->getMeta('pp2bs') || $patient->getMeta('S_widal') || $patient->getMeta('USG') || $patient->getMeta('X_ray') || $patient->getMeta('SGPT') || $patient->getMeta('s_creatinine') || $patient->getMeta('NS1Ag') || $patient->getMeta('DengueIGM') || $patient->getMeta('Urine') || $patient->getMeta('CRP') || $patient->getMeta('SB12') || $patient->getMeta('SD3') || $patient->getMeta('St3') || $patient->getMeta('St4') || $patient->getMeta('STSH') || $patient->getMeta('ESR') || $patient->getMeta('specific_test');
+                                        @endphp
                                         <div class="icon-box" onclick="toggleSection(this, 'lab-investigation-section')">
-                                            <i class="bi bi-plus-lg" id="lab-toggle-icon"></i>
+                                            <i class="bi {{ $hasLabValues ? 'bi-dash-lg' : 'bi-plus-lg' }}" id="lab-toggle-icon"></i>
                                         </div>
                                     </div>
 
-                                    <div class="lab-investigation-section" style="display: none;">
+                                    <div class="lab-investigation-section" style="{{ $hasLabValues ? '' : 'display: none;' }}">
                                         <div class="row pt-3">
                                             <div class="col-md-3 mb-3">
                                                 <label for="hb">HB</label>
@@ -1073,16 +1105,19 @@
                                     </div>
 
                                     <!-- INSIDE TREATMENT -->
+                                    @php
+                                        $insideRows = $treatments['inside'] ?? [];
+                                    @endphp
                                     <div class="treatment-section mb-4">
                                         <div class="section-divider">
                                             <div class="title">Inside Treatment</div>
                                             <div class="line"></div>
                                             <div class="icon-box" onclick="toggleInsideSection(this)">
-                                                <i class="bi bi-dash-lg" id="inside-toggle-icon"></i>
+                                                <i class="bi {{ count($insideRows) > 0 ? 'bi-dash-lg' : 'bi-plus-lg' }}" id="inside-toggle-icon"></i>
                                             </div>
                                         </div>
                                         
-                                        <div id="inside-section" class="mt-3 table-responsive">
+                                        <div id="inside-section" class="mt-3 table-responsive" style="{{ count($insideRows) > 0 ? '' : 'display: none;' }}">
                                             <table class="table table-borderless treatment-table">
                                                 <thead>
                                                     <tr class="text-muted small">
@@ -1094,9 +1129,6 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody id="inside-treatment-body">
-                                                    @php
-                                                        $insideRows = $treatments['inside'] ?? [];
-                                                    @endphp
                                                     @if(count($insideRows) > 0)
                                                         @foreach($insideRows as $index => $row)
                                                             <tr>
@@ -1162,16 +1194,19 @@
                                     </div>
 
                                     <!-- PRESCRIPTION -->
+                                    @php
+                                        $prescriptionRows = $treatments['prescription'] ?? [];
+                                    @endphp
                                     <div class="treatment-section mb-4">
                                         <div class="section-divider">
                                             <div class="title">Prescription</div>
                                             <div class="line"></div>
                                             <div class="icon-box" onclick="togglePrescriptionSection(this)">
-                                                <i class="bi bi-dash-lg" id="prescription-toggle-icon"></i>
+                                                <i class="bi {{ count($prescriptionRows) > 0 ? 'bi-dash-lg' : 'bi-plus-lg' }}" id="prescription-toggle-icon"></i>
                                             </div>
                                         </div>
                                         
-                                        <div id="prescription-section" class="mt-3 table-responsive">
+                                        <div id="prescription-section" class="mt-3 table-responsive" style="{{ count($prescriptionRows) > 0 ? '' : 'display: none;' }}">
                                             <table class="table table-borderless treatment-table">
                                                 <thead>
                                                     <tr class="text-muted small">
@@ -1183,9 +1218,6 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody id="prescription-treatment-body">
-                                                    @php
-                                                        $prescriptionRows = $treatments['prescription'] ?? [];
-                                                    @endphp
                                                     @if(count($prescriptionRows) > 0)
                                                         @foreach($prescriptionRows as $index => $row)
                                                             <tr>
@@ -1252,16 +1284,19 @@
 
                                     <!-- Homeopathic and Indoor Treatment Section -->
                                     <!-- HOMEOPATHIC TREATMENT -->
+                                    @php
+                                        $homeoRows = $treatments['homeo'] ?? [];
+                                    @endphp
                                     <div class="treatment-section mb-4">
                                         <div class="section-divider">
                                             <div class="title">Homeopathic Treatment</div>
                                             <div class="line"></div>
                                             <div class="icon-box" onclick="toggleHomeoSection(this)">
-                                                <i class="bi bi-dash-lg" id="homeo-toggle-icon"></i>
+                                                <i class="bi {{ count($homeoRows) > 0 ? 'bi-dash-lg' : 'bi-plus-lg' }}" id="homeo-toggle-icon"></i>
                                             </div>
                                         </div>
                                         
-                                        <div id="homeo-section" class="mt-3 table-responsive">
+                                        <div id="homeo-section" class="mt-3 table-responsive" style="{{ count($homeoRows) > 0 ? '' : 'display: none;' }}">
                                             <table class="table table-borderless treatment-table">
                                                 <thead>
                                                     <tr class="text-muted small">
@@ -1273,9 +1308,6 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody id="homeo-treatment-body">
-                                                    @php
-                                                        $homeoRows = $treatments['homeo'] ?? [];
-                                                    @endphp
                                                     @if(count($homeoRows) > 0)
                                                         @foreach($homeoRows as $index => $row)
                                                             <tr>
@@ -1341,16 +1373,19 @@
                                     </div>
 
                              
+                                    @php
+                                        $indoorRows = $treatments['indoor'] ?? [];
+                                    @endphp
                                     <div class="treatment-section mb-4">
                                         <div class="section-divider">
                                             <div class="title">Indoor Treatment</div>
                                             <div class="line"></div>
                                             <div class="icon-box" onclick="toggleIndoorSection(this)">
-                                                <i class="bi bi-dash-lg" id="indoor-toggle-icon"></i>
+                                                <i class="bi {{ count($indoorRows) > 0 ? 'bi-dash-lg' : 'bi-plus-lg' }}" id="indoor-toggle-icon"></i>
                                             </div>
                                         </div>
                                         
-                                        <div id="indoor-section" class="mt-3 table-responsive">
+                                        <div id="indoor-section" class="mt-3 table-responsive" style="{{ count($indoorRows) > 0 ? '' : 'display: none;' }}">
                                             <table class="table table-borderless treatment-table">
                                                 <thead>
                                                     <tr class="text-muted small">
@@ -1364,9 +1399,6 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody id="indoor-treatment-body">
-                                                    @php
-                                                        $indoorRows = $treatments['indoor'] ?? [];
-                                                    @endphp
                                                     @if(count($indoorRows) > 0)
                                                         @foreach($indoorRows as $index => $row)
                                                             <tr>
@@ -1422,16 +1454,19 @@
                                     </div>
 
                                     <!-- OTHER TREATMENT -->
+                                    @php
+                                        $otherRows = $treatments['other'] ?? [];
+                                    @endphp
                                     <div class="treatment-section mb-4">
                                         <div class="section-divider">
                                             <div class="title">Other Treatment</div>
                                             <div class="line"></div>
                                             <div class="icon-box" onclick="toggleOtherSection(this)">
-                                                <i class="bi bi-dash-lg" id="other-toggle-icon"></i>
+                                                <i class="bi {{ count($otherRows) > 0 ? 'bi-dash-lg' : 'bi-plus-lg' }}" id="other-toggle-icon"></i>
                                             </div>
                                         </div>
                                         
-                                        <div id="other-section" class="mt-3 table-responsive">
+                                        <div id="other-section" class="mt-3 table-responsive" style="{{ count($otherRows) > 0 ? '' : 'display: none;' }}">
                                             <table class="table table-borderless treatment-table">
                                                 <thead>
                                                     <tr class="text-muted small">
@@ -1441,9 +1476,6 @@
                                                     </tr>
                                                 </thead>
                                                 <tbody id="other-treatment-body">
-                                                    @php
-                                                        $otherRows = $treatments['other'] ?? [];
-                                                    @endphp
                                                     @if(count($otherRows) > 0)
                                                         @foreach($otherRows as $index => $row)
                                                             <tr>
@@ -1519,8 +1551,15 @@
                                     <div class="section-divider mt-4">
                                         <div class="title">Payment Information</div>
                                         <div class="line"></div>
+                                        @php
+                                            $hasPaymentValues = $patient->getMeta('foc') == 'on' || $patient->getMeta('inquiry_foc') == 'Yes' || $patient->getMeta('total_payment') > 0 || $patient->getMeta('discount_payment') > 0 || $patient->getMeta('given_payment') > 0 || $patient->getMeta('charge_id') != null;
+                                        @endphp
+                                        <div class="icon-box" onclick="toggleSection(this, 'payment-info-section')">
+                                            <i class="bi {{ $hasPaymentValues ? 'bi-dash-lg' : 'bi-plus-lg' }}" id="payment-toggle-icon"></i>
+                                        </div>
                                     </div>
 
+                                    <div class="payment-info-section" style="{{ $hasPaymentValues ? '' : 'display: none;' }}">
                                     <div class="d-flex align-items-center bg-light pt-3">
                                         <input type="checkbox" name="foc" id="foc" class="form-check-input me-3"
                                             {{ ($patient->getMeta('foc') == 'on' || $patient->getMeta('inquiry_foc') == 'Yes') ? 'checked' : '' }}>
@@ -1609,6 +1648,7 @@
                                             </div>
 
                                         </div>{{-- /paymentRow --}}
+                                    </div>
                                     </div>
 
                                     {{-- ── Charge multi-select JS ── --}}
@@ -1916,24 +1956,7 @@ function toggleSection(iconBox, sectionId) {
     }
 }
 
-// Initialize sections to be collapsed by default
-document.addEventListener('DOMContentLoaded', function() {
-    const sections = [
-        'lab-investigation-section',
-        'inside-treatment-section',
-        'prescription-section',
-        'homeo-treatment-section',
-        'indoor-treatment-section',
-        'other-treatment-section'
-    ];
-
-    sections.forEach(section => {
-        const element = document.querySelector(`.${section}`);
-        if (element) {
-            element.style.display = 'none';
-        }
-    });
-});
+// Sections are handled conditionally in Blade template above based on values
 
 // Payment Calculation JavaScript for Edit Form (handled in multi-select block above)
 

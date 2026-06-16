@@ -422,15 +422,19 @@
                                 </div>
                                 <div class="diet-metric-box">
                                     <label>BMR</label>
-                                    <input type="text" name="pod_bmr_value" class="diet-metric-input"
+                                    <input type="text" name="pod_bmr_value" id="bmrValueInput" class="diet-metric-input"
                                         value="{{ $latestMeta['pod_bmr_value'] ?? '' }}">
                                 </div>
                                 <div class="diet-metric-box">
                                     <label>Calories req.</label>
-                                    <input type="text" name="pod_calories" class="diet-metric-input"
+                                    <input type="text" name="pod_calories" id="caloriesInput" class="diet-metric-input"
                                         value="{{ $latestMeta['pod_calories'] ?? '' }}">
                                 </div>
                             </div>
+                            
+                            <!-- Hidden inputs for BMR calculation -->
+                            <input type="hidden" id="patientAge" value="{{ $patient->age ?? 0 }}">
+                            <input type="hidden" id="patientGender" value="{{ $patient->gender ?? 'Other' }}">
 
                             <!-- Clinical Parameters (Linear Layout) -->
                             <div class="diet-history-container">
@@ -1129,7 +1133,7 @@
                                     <!-- Row 11: Physical Activity & Walking Time -->
                                     <div class="diet-line">
                                         <label>Physical Activity:</label>
-                                        <select name="physical_activity" class="form-control-line">
+                                        <select name="physical_activity" id="physicalActivityInput" class="form-control-line">
                                             <option value="" {{ ($latestMeta['physical_activity'] ?? '') == '' ? 'selected' : '' }}>
                                                 Select Activity</option>
                                             <option value="Sedentary (Very Low Activity)" {{ ($latestMeta['physical_activity'] ?? ''
@@ -1935,6 +1939,7 @@
                 heightInput.addEventListener('input', function () {
                     calculateBMI();
                     calculateBodyWeightMetrics();
+                    calculateBMRAndTDEE();
                 });
             }
 
@@ -1942,12 +1947,70 @@
                 weightInput.addEventListener('input', function () {
                     calculateBMI();
                     calculateBodyWeightMetrics();
+                    calculateBMRAndTDEE();
                 });
+            }
+            
+            const physicalActivityInput = document.getElementById('physicalActivityInput');
+            if (physicalActivityInput) {
+                physicalActivityInput.addEventListener('change', function () {
+                    calculateBMRAndTDEE();
+                });
+            }
+
+            // ─── AUTO-CALCULATE BMR AND TDEE (CALORIES REQ) ─────────────────────
+            function calculateBMRAndTDEE() {
+                const hEl = document.getElementById('heightInput');
+                const wEl = document.getElementById('weightInput');
+                const bmrEl = document.getElementById('bmrValueInput');
+                const calEl = document.getElementById('caloriesInput');
+                const ageEl = document.getElementById('patientAge');
+                const genderEl = document.getElementById('patientGender');
+                const activityEl = document.getElementById('physicalActivityInput');
+
+                if (!hEl || !wEl || !bmrEl || !calEl || !ageEl || !genderEl) return;
+
+                const height = parseFloat(hEl.value);
+                const weight = parseFloat(wEl.value);
+                const age = parseInt(ageEl.value) || 0;
+                const gender = genderEl.value;
+
+                if (height && weight && height > 0 && age > 0) {
+                    let bmr = 0;
+                    if (gender.toLowerCase() === 'female') {
+                        bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
+                    } else {
+                        // Default to Male formula
+                        bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
+                    }
+                    
+                    bmrEl.value = Math.round(bmr);
+
+                    if (activityEl && activityEl.value) {
+                        const activityMultipliers = {
+                            "Sedentary (Very Low Activity)": 1.2,
+                            "Lightly Active": 1.375,
+                            "Moderately Active": 1.55,
+                            "Very Active": 1.725,
+                            "Extra Active": 1.9
+                        };
+                        
+                        const multiplier = activityMultipliers[activityEl.value] || 1.2;
+                        const tdee = bmr * multiplier;
+                        calEl.value = Math.round(tdee);
+                    } else {
+                        calEl.value = '';
+                    }
+                } else {
+                    bmrEl.value = '';
+                    calEl.value = '';
+                }
             }
 
             // Run on page load if values already present
             calculateBMI();
             calculateBodyWeightMetrics();
+            calculateBMRAndTDEE();
 
             // Auto-calculate due payment
             function calculateDuePayment() {

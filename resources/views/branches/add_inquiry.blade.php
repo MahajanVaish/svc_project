@@ -14,7 +14,7 @@
             white-space: nowrap;
             font-size: 16px;
             font-weight: 500;
-            color: #666;
+            color: #28a745;
             margin-right: 10px;
         }
 
@@ -121,10 +121,17 @@
         textarea {
             width: 100%;
             padding: 10px 12px;
-            border: 1px solid #bdc3c7;
+            border: 1px solid #ced4da;
             border-radius: 4px;
             font-size: 14px;
-            font-family: Arial, sans-serif;
+            font-family: inherit;
+            transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: #28a745;
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
         }
 
         textarea {
@@ -758,7 +765,13 @@
                                         <input type="hidden" name="branch" id="branchHidden" value="">
                                     @endif
 
-                                    <div class="section-divider">Personal Information</div>
+                                    <div class="section-divider">
+                                        <div class="title">Personal Information</div>
+                                        <div class="line"></div>
+                                        <div class="icon-box" onclick="toggleGenericSection(this)">
+                                            <i class="bi bi-dash-lg"></i>
+                                        </div>
+                                    </div>
                                     <div class="pt-4">
                                         <div class="pro_filed d-sm-block d-md-flex ">
                                             <div class="form">
@@ -978,7 +991,14 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="section-divider">Medical Information</div>
+                                        <div class="section-divider mt-4">
+                                            <div class="title">Medical Information</div>
+                                            <div class="line"></div>
+                                            <div class="icon-box" onclick="toggleGenericSection(this)">
+                                                <i class="bi bi-plus-lg"></i>
+                                            </div>
+                                        </div>
+                                        <div style="display: none;">
                                         <div class="pro_filed d-sm-block d-md-flex pt-3">
                                             <div class="form">
                                                 <div class="form-col">
@@ -1016,6 +1036,7 @@
                                                     </select>
                                                 </div>
                                             </div>
+                                        </div>
                                         </div>
                                         {{-- <div class="section-divider"></div> --}}
                                         <div class="section-divider mt-4">
@@ -1202,11 +1223,11 @@
                                                 <div class="title">Inside Treatment</div>
                                                 <div class="line"></div>
                                                 <div class="icon-box" onclick="toggleInsideSection(this)">
-                                                    <i class="bi bi-dash-lg" id="inside-toggle-icon"></i>
+                                                    <i class="bi bi-plus-lg" id="inside-toggle-icon"></i>
                                                 </div>
                                             </div>
 
-                                            <div id="inside-section" class="mt-3">
+                                            <div id="inside-section" class="mt-3" style="display: none;">
                                                 <table class="table table-borderless treatment-table">
                                                     <thead>
                                                         <tr class="text-muted small">
@@ -1261,11 +1282,11 @@
                                                 <div class="title">Prescription</div>
                                                 <div class="line"></div>
                                                 <div class="icon-box" onclick="togglePrescriptionSection(this)">
-                                                    <i class="bi bi-dash-lg" id="prescription-toggle-icon"></i>
+                                                    <i class="bi bi-plus-lg" id="prescription-toggle-icon"></i>
                                                 </div>
                                             </div>
 
-                                            <div id="prescription-section" class="mt-3">
+                                            <div id="prescription-section" class="mt-3" style="display: none;">
                                                 <table class="table table-borderless treatment-table">
                                                     <thead>
                                                         <tr class="text-muted small">
@@ -1320,11 +1341,11 @@
                                                 <div class="title">Homeopathic Treatment</div>
                                                 <div class="line"></div>
                                                 <div class="icon-box" onclick="toggleHomeopathicSection(this)">
-                                                    <i class="bi bi-dash-lg" id="Homeopathic-toggle-icon"></i>
+                                                    <i class="bi bi-plus-lg" id="Homeopathic-toggle-icon"></i>
                                                 </div>
                                             </div>
 
-                                            <div id="homeo-treatment-container" class="mt-3">
+                                            <div id="homeo-treatment-container" class="mt-3" style="display: none;">
                                                 <table class="table table-borderless treatment-table">
                                                     <thead>
                                                         <tr class="text-muted small">
@@ -1379,11 +1400,11 @@
                                                 <div class="title">Indoor Treatment</div>
                                                 <div class="line"></div>
                                                 <div class="icon-box" onclick="toggleIndoorSection(this)">
-                                                    <i class="bi bi-dash-lg" id="Indoor-toggle-icon"></i>
+                                                    <i class="bi bi-plus-lg" id="Indoor-toggle-icon"></i>
                                                 </div>
                                             </div>
 
-                                            <div id="indoor-treatment-container" class="mt-3">
+                                            <div id="indoor-treatment-container" class="mt-3" style="display: none;">
                                                 <table class="table table-borderless treatment-table">
                                                     <thead>
                                                         <tr class="text-muted small">
@@ -1440,11 +1461,11 @@
                                                 <div class="title">Other Treatment</div>
                                                 <div class="line"></div>
                                                 <div class="icon-box" onclick="toggleOtherSection(this)">
-                                                    <i class="bi bi-dash-lg" id="other-toggle-icon"></i>
+                                                    <i class="bi bi-plus-lg" id="other-toggle-icon"></i>
                                                 </div>
                                             </div>
 
-                                            <div id="other-treatment-container" class="mt-3">
+                                            <div id="other-treatment-container" class="mt-3" style="display: none;">
                                                 <table class="table table-borderless treatment-table">
                                                     <thead>
                                                         <tr class="text-muted small">
@@ -1661,16 +1682,20 @@
                                         <div class="section-divider mt-4">
                                             <div class="title">Payment Information</div>
                                             <div class="line"></div>
+                                            <div class="icon-box" onclick="togglePaymentSection(this)">
+                                                <i class="bi bi-plus-lg" id="payment-toggle-icon"></i>
+                                            </div>
                                         </div>
 
-                                        <div class="d-flex align-items-center bg-light p-3 mb-3">
-                                            <input type="checkbox" name="foc" id="foc" class="form-check-input me-3">
-                                            <label for="foc" class="mb-0 fw-semibold">
-                                                FOC (Free of Charge Inquiry)
-                                            </label>
-                                        </div>
+                                        <div id="payment-info-section" style="display: none;">
+                                            <div class="d-flex align-items-center bg-light p-3 mb-3">
+                                                <input type="checkbox" name="foc" id="foc" class="form-check-input me-3">
+                                                <label for="foc" class="mb-0 fw-semibold">
+                                                    FOC (Free of Charge Inquiry)
+                                                </label>
+                                            </div>
 
-                                        <div id="payment_section">
+                                            <div id="payment_section">
                                             <div class="pro_filed" style="flex-wrap: wrap;">
                                                 <div class="form">
                                                     <div class="form-col">
@@ -1749,9 +1774,41 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        </div>
 
                                     </div>
 
+                                    <script>
+                                        function toggleGenericSection(el) {
+                                            const section = el.parentElement.nextElementSibling;
+                                            const icon = el.querySelector("i");
+                                            const currentDisplay = window.getComputedStyle(section).display;
+                                            if (currentDisplay === "none") {
+                                                section.style.display = "block";
+                                                icon.classList.remove("bi-plus-lg");
+                                                icon.classList.add("bi-dash-lg");
+                                            } else {
+                                                section.style.display = "none";
+                                                icon.classList.remove("bi-dash-lg");
+                                                icon.classList.add("bi-plus-lg");
+                                            }
+                                        }
+
+                                        function togglePaymentSection(el) {
+                                            const section = el.parentElement.nextElementSibling;
+                                            const icon = el.querySelector("i");
+                                            const currentDisplay = window.getComputedStyle(section).display;
+                                            if (currentDisplay === "none") {
+                                                section.style.display = "block";
+                                                icon.classList.remove("bi-plus-lg");
+                                                icon.classList.add("bi-dash-lg");
+                                            } else {
+                                                section.style.display = "none";
+                                                icon.classList.remove("bi-dash-lg");
+                                                icon.classList.add("bi-plus-lg");
+                                            }
+                                        }
+                                    </script>
                                     <script>
                                         document.addEventListener('DOMContentLoaded', function () {
                                             const givenPaymentInput = document.getElementById('given_payment');
