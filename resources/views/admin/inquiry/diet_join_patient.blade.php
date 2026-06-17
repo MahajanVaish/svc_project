@@ -966,32 +966,42 @@
                                         </div>
 
                                         <div id="paymentRow" class="row align-items-end mb-3">
-                                            <div class="col-md-2">
+                                            <div class="col-md-2 mb-2">
                                                 <label class="form-label">Total Charges (₹)</label>
                                                 <input type="number" class="form-control" name="total_payment"
                                                     id="total_payment" value="{{ old('total_payment', '0') }}">
                                             </div>
-                                            <div class="col-md-2">
+                                            <div class="col-md-2 mb-2">
                                                 <label class="form-label">Discount (₹)</label>
                                                 <input type="number" step="0.01" class="form-control"
                                                     name="discount_payment" id="discount_payment"
                                                     value="{{ old('discount_payment', '') }}" placeholder="0.00">
                                             </div>
-                                            <div class="col-md-2">
+                                            <div class="col-md-2 mb-2">
+                                                <label class="form-label">Cash (₹)</label>
+                                                <input type="number" step="0.01" class="form-control" name="cash_payment"
+                                                    id="cash_payment" value="{{ old('cash_payment', '') }}"
+                                                    placeholder="0.00">
+                                            </div>
+                                            <div class="col-md-2 mb-2">
+                                                <label class="form-label">G-Pay (₹)</label>
+                                                <input type="number" step="0.01" class="form-control" name="gpay_payment"
+                                                    id="gpay_payment" value="{{ old('gpay_payment', '') }}"
+                                                    placeholder="0.00">
+                                            </div>
+                                            <div class="col-md-2 mb-2">
+                                                <label class="form-label">Cheque (₹)</label>
+                                                <input type="number" step="0.01" class="form-control" name="cheque_payment"
+                                                    id="cheque_payment" value="{{ old('cheque_payment', '') }}"
+                                                    placeholder="0.00">
+                                            </div>
+                                            <div class="col-md-2 mb-2">
                                                 <label class="form-label">Paid Amount (₹)</label>
                                                 <input type="number" step="0.01" class="form-control" name="given_payment"
                                                     id="given_payment" value="{{ old('given_payment', '') }}"
-                                                    placeholder="0.00">
+                                                    placeholder="0.00" readonly style="background-color: #f8f9fa;">
                                             </div>
-                                            <div class="col-md-3">
-                                                <label class="form-label">Payment Method</label>
-                                                <select class="form-select" name="payment_method" id="payment_method">
-                                                    <option value="Cash" {{ (old('payment_method', 'Cash') == 'Cash') ? 'selected' : '' }}>Cash</option>
-                                                    <option value="Online" {{ (old('payment_method') == 'Online') ? 'selected' : '' }}>Online</option>
-                                                    <option value="Cheque" {{ (old('payment_method') == 'Cheque') ? 'selected' : '' }}>Cheque</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-3">
+                                            <div class="col-md-2 mb-2">
                                                 <label class="form-label">Due Balance (₹)</label>
                                                 <input type="number" class="form-control" id="due_payment"
                                                     name="due_payment" value="0" readonly
@@ -2097,6 +2107,29 @@
                 const field = document.querySelector(`[name="${fieldName}"]`);
                 if (field) {
                     field.addEventListener('input', calculateDuePayment);
+                }
+            });
+
+            // Split payments calculation
+            const cashInput = document.getElementById('cash_payment');
+            const gpayInput = document.getElementById('gpay_payment');
+            const chequeInput = document.getElementById('cheque_payment');
+            const givenPaymentInput = document.getElementById('given_payment');
+
+            function calculateGivenPayment() {
+                const cash = parseFloat(cashInput ? cashInput.value : 0) || 0;
+                const gpay = parseFloat(gpayInput ? gpayInput.value : 0) || 0;
+                const cheque = parseFloat(chequeInput ? chequeInput.value : 0) || 0;
+                if (givenPaymentInput) {
+                    givenPaymentInput.value = (cash + gpay + cheque).toFixed(2);
+                    calculateDuePayment();
+                }
+            }
+
+            [cashInput, gpayInput, chequeInput].forEach(input => {
+                if (input) {
+                    input.addEventListener('input', calculateGivenPayment);
+                    input.addEventListener('keyup', calculateGivenPayment);
                 }
             });
 

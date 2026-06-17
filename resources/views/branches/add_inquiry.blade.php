@@ -1734,18 +1734,7 @@
                                                     <div class="form-col">
                                                         <label for="given_payment">Paid Amount</label>
                                                         <input type="number" id="given_payment" name="given_payment"
-                                                            placeholder="Enter amount paid" step="0.01">
-                                                    </div>
-                                                </div>
-                                                <div class="form">
-                                                    <div class="form-col">
-                                                        <label for="payment_method">Payment Method</label>
-                                                        <select id="payment_method" name="payment_method">
-                                                            <option value="">Select Type</option>
-                                                            <option value="Cash">Cash</option>
-                                                            <option value="Online">Online</option>
-                                                            <option value="Cheque">Cheque</option>
-                                                        </select>
+                                                            placeholder="Enter amount paid" step="0.01" readonly style="background-color: #f8f9fa;">
                                                     </div>
                                                 </div>
                                                 <div class="form">
@@ -1757,7 +1746,14 @@
                                                 </div>
                                             </div>
 
-                                            <div class="pro_filed pt-3">
+                                            <div class="pro_filed pt-3" style="flex-wrap: wrap;">
+                                                <div class="form">
+                                                    <div class="form-col">
+                                                        <label for="cash_payment">Cash Payment</label>
+                                                        <input type="number" id="cash_payment" name="cash_payment"
+                                                            placeholder="Cash Payment" step="0.01">
+                                                    </div>
+                                                </div>
                                                 <div class="form">
                                                     <div class="form-col">
                                                         <label for="gp_payment">Google Pay</label>
@@ -1974,13 +1970,20 @@
                                                 });
                                                 if (totalPaymentInput) totalPaymentInput.value = total.toFixed(2);
 
-                                                const discount = parseFloat(document.getElementById('discount_payment')?.value) || 0;
-                                                const given = parseFloat(givenPaymentInput?.value) || 0;
+                                                calculateGiven();
+                                                calculateDue();
+                                            }
 
-                                                // Auto-fill paid if empty
-                                                if (givenPaymentInput && (!givenPaymentInput.value || givenPaymentInput.value == 0)) {
-                                                    givenPaymentInput.value = Math.max(0, total - discount).toFixed(2);
-                                                }
+                                            function calculateGiven() {
+                                                const cashInput = document.getElementById('cash_payment');
+                                                const gpayInput = document.getElementById('gp_payment');
+                                                const chequeInput = document.getElementById('cheque_payment');
+                                                
+                                                const cash = parseFloat(cashInput?.value) || 0;
+                                                const gpay = parseFloat(gpayInput?.value) || 0;
+                                                const cheque = parseFloat(chequeInput?.value) || 0;
+                                                
+                                                if (givenPaymentInput) givenPaymentInput.value = (cash + gpay + cheque).toFixed(2);
                                                 calculateDue();
                                             }
 
@@ -1992,7 +1995,9 @@
                                             }
 
                                             document.getElementById('discount_payment')?.addEventListener('input', calculateDue);
-                                            document.getElementById('given_payment')?.addEventListener('input', calculateDue);
+                                            document.getElementById('cash_payment')?.addEventListener('input', calculateGiven);
+                                            document.getElementById('gp_payment')?.addEventListener('input', calculateGiven);
+                                            document.getElementById('cheque_payment')?.addEventListener('input', calculateGiven);
 
                                             // FOC checkbox functionality
                                             if (focCheckbox && paymentSection) {

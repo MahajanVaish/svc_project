@@ -854,20 +854,23 @@
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label" style="font-size: 12px; font-weight: 600;">Given Payment (₹)</label>
-                                    <input type="number" step="0.01" class="form-control" name="given_payment" id="input-pay-given" required>
+                                    <input type="number" step="0.01" class="form-control" name="given_payment" id="input-pay-given" readonly style="background-color: #f8f9fa;">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label" style="font-size: 12px; font-weight: 600;">Discount (₹)</label>
                                     <input type="number" step="0.01" class="form-control" name="discount_payment" id="input-pay-discount" value="0">
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label" style="font-size: 12px; font-weight: 600;">Payment Method</label>
-                                    <select class="form-select" name="payment_method" id="input-pay-method">
-                                        <option value="Cash">Cash</option>
-                                        <option value="Card">Card</option>
-                                        <option value="UPI">Google Pay</option>
-                                        <option value="Bank Transfer">Bank Transfer</option>
-                                    </select>
+                                    <label class="form-label" style="font-size: 12px; font-weight: 600;">Cash Payment (₹)</label>
+                                    <input type="number" step="0.01" class="form-control" name="cash_payment" id="input-pay-cash" value="0">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" style="font-size: 12px; font-weight: 600;">G-Pay Payment (₹)</label>
+                                    <input type="number" step="0.01" class="form-control" name="gp_payment" id="input-pay-gpay" value="0">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" style="font-size: 12px; font-weight: 600;">Cheque Payment (₹)</label>
+                                    <input type="number" step="0.01" class="form-control" name="cheque_payment" id="input-pay-cheque" value="0">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label" style="font-size: 12px; font-weight: 600;">Charge Date</label>
@@ -1113,10 +1116,13 @@
             document.getElementById('modal-pay-due').textContent = due;
             document.getElementById('modal-pay-discount').textContent = disc;
 
-            // Populate form
             document.getElementById('input-pay-total').value = parseFloat(total);
             document.getElementById('input-pay-given').value = parseFloat(paid);
             document.getElementById('input-pay-discount').value = parseFloat(disc);
+            
+            document.getElementById('input-pay-cash').value = parseFloat(inv.cash_payment || 0);
+            document.getElementById('input-pay-gpay').value = parseFloat(inv.gpay_payment || inv.google_pay || 0);
+            document.getElementById('input-pay-cheque').value = parseFloat(inv.cheque_payment || 0);
 
             const form = document.getElementById('paymentUpdateForm');
             form.action = `/svc-profile/${data.id}/update-charges`;
@@ -1124,5 +1130,25 @@
             const modal = new bootstrap.Modal(document.getElementById('paymentDetailsModal'));
             modal.show();
         }
+
+        // Calculate given payment
+        document.addEventListener('DOMContentLoaded', function() {
+            const cashInput = document.getElementById('input-pay-cash');
+            const gpayInput = document.getElementById('input-pay-gpay');
+            const chequeInput = document.getElementById('input-pay-cheque');
+            const givenInput = document.getElementById('input-pay-given');
+
+            function calculateGiven() {
+                const cash = parseFloat(cashInput?.value) || 0;
+                const gpay = parseFloat(gpayInput?.value) || 0;
+                const cheque = parseFloat(chequeInput?.value) || 0;
+                if (givenInput) givenInput.value = (cash + gpay + cheque).toFixed(2);
+            }
+
+            [cashInput, gpayInput, chequeInput].forEach(input => {
+                if (input) input.addEventListener('input', calculateGiven);
+            });
+        });
+
     </script>
 @endsection

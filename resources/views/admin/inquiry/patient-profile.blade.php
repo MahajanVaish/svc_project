@@ -3664,18 +3664,6 @@
                             </h3>
                             <div class="payment-grid">
                                 <div class="payment-field">
-                                    <label for="edit_payment_method">Payment Method</label>
-                                    <select class="payment-input" id="edit_payment_method" name="payment_method">
-                                        <option value="">Select Method</option>
-                                        <option value="Cash">Cash</option>
-                                        <option value="Card">Card</option>
-                                        <option value="UPI">UPI</option>
-                                        <option value="Cheque">Cheque</option>
-                                        <option value="Bank Transfer">Bank Transfer</option>
-                                    </select>
-                                </div>
-
-                                <div class="payment-field">
                                     <label for="edit_total">Total Amount</label>
                                     <div class="payment-input-group">
                                         <input type="number" class="payment-input" id="edit_total" name="total" step="0.01">
@@ -3693,9 +3681,33 @@
                                 </div>
 
                                 <div class="payment-field">
-                                    <label for="edit_given">Given Amount</label>
+                                    <label for="edit_cash">Cash</label>
                                     <div class="payment-input-group">
-                                        <input type="number" class="payment-input" id="edit_given" name="given" step="0.01">
+                                        <input type="number" class="payment-input" id="edit_cash" name="cash_payment" step="0.01" placeholder="0.00">
+                                        <span class="currency">₹</span>
+                                    </div>
+                                </div>
+
+                                <div class="payment-field">
+                                    <label for="edit_gpay">G-Pay</label>
+                                    <div class="payment-input-group">
+                                        <input type="number" class="payment-input" id="edit_gpay" name="gpay_payment" step="0.01" placeholder="0.00">
+                                        <span class="currency">₹</span>
+                                    </div>
+                                </div>
+
+                                <div class="payment-field">
+                                    <label for="edit_cheque">Cheque</label>
+                                    <div class="payment-input-group">
+                                        <input type="number" class="payment-input" id="edit_cheque" name="cheque_payment" step="0.01" placeholder="0.00">
+                                        <span class="currency">₹</span>
+                                    </div>
+                                </div>
+
+                                <div class="payment-field">
+                                    <label for="edit_given">Paid Amount</label>
+                                    <div class="payment-input-group">
+                                        <input type="number" class="payment-input" id="edit_given" name="given" step="0.01" readonly style="background-color: #f8f9fa;">
                                         <span class="currency">₹</span>
                                     </div>
                                 </div>
@@ -4476,14 +4488,24 @@
                 }, 3000);
             }
 
-            // Calculate due amount for payment form
+            // Calculate due amount
             function calculateDueAmount() {
                 const total = parseFloat($('#edit_total').val()) || 0;
                 const discount = parseFloat($('#edit_discount').val()) || 0;
                 const given = parseFloat($('#edit_given').val()) || 0;
 
-                const due = total - discount - given;
+                const due = Math.max(0, total - discount - given);
                 $('#edit_due').val(due.toFixed(2));
+            }
+
+            function calculateGivenAmountFromSplit() {
+                const cash = parseFloat($('#edit_cash').val()) || 0;
+                const gpay = parseFloat($('#edit_gpay').val()) || 0;
+                const cheque = parseFloat($('#edit_cheque').val()) || 0;
+                
+                const totalGiven = cash + gpay + cheque;
+                $('#edit_given').val(totalGiven.toFixed(2));
+                calculateDueAmount();
             }
 
             // Add CSS for loading spinner
@@ -4997,11 +5019,18 @@
                 const discount = (program.discount || '0').toString().replace('₹', '').trim();
                 const given = (program.given || '0').toString().replace('₹', '').trim();
                 const due = (program.due || '0').toString().replace('₹', '').trim();
+                
+                const cash = (program.cash_payment || '0').toString().replace('₹', '').trim();
+                const gpay = (program.gpay_payment || '0').toString().replace('₹', '').trim();
+                const cheque = (program.cheque_payment || '0').toString().replace('₹', '').trim();
 
                 $('#edit_total').val(total);
                 $('#edit_discount').val(discount);
                 $('#edit_given').val(given);
                 $('#edit_due').val(due);
+                $('#edit_cash').val(cash);
+                $('#edit_gpay').val(gpay);
+                $('#edit_cheque').val(cheque);
                 $('#edit_due_date').val(program.due_date || '');
 
                 // Set payment status checkbox
@@ -5013,8 +5042,12 @@
             }
 
             // Auto-calculate due amount when total, discount, or given changes
-            $(document).on('input', '#edit_total, #edit_discount, #edit_given', function () {
+            $(document).on('input', '#edit_total, #edit_discount', function () {
                 calculateDueAmount();
+            });
+
+            $(document).on('input', '#edit_cash, #edit_gpay, #edit_cheque', function () {
+                calculateGivenAmountFromSplit();
             });
 
             // Payment form submit handler

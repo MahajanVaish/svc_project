@@ -760,9 +760,9 @@
                                             id="discount_payment" placeholder="0.00" value="{{ old('discount_payment', '0') }}">
                                     </div>
                                     <div class="col-md-3">
-                                        <label class="form-label">Paid Amount (₹)</label>
-                                        <input type="number" step="0.01" class="form-control" name="given_payment"
-                                            id="given_payment" placeholder="0.00" value="{{ old('given_payment') }}">
+                                        <label class="form-label">Given Payment (₹)</label>
+                                        <input type="number" step="0.01" class="form-control" name="paid_amount"
+                                            id="paid_amount" placeholder="0.00" value="{{ old('paid_amount') }}" readonly style="background-color: #f8f9fa;">
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label">Due Payment (₹)</label>
@@ -771,18 +771,18 @@
                                     </div>
                                 </div>
                                 <div class="row align-items-end">
-                                    <div class="col-md-3">
-                                        <label class="form-label">Payment Method</label>
-                                        <select class="form-select" name="payment_method" id="payment_method">
-                                            <option value="Cash" {{ old('payment_method', 'Cash') == 'Cash' ? 'selected' : '' }}>
-                                                Cash</option>
-                                            <option value="Online" {{ old('payment_method') == 'Online' ? 'selected' : '' }}>
-                                                Online</option>
-                                            <option value="Cheque" {{ old('payment_method') == 'Cheque' ? 'selected' : '' }}>
-                                                Cheque</option>
-                                        </select>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Cash Payment (₹)</label>
+                                        <input type="number" step="0.01" class="form-control payment-input" name="cash_payment" id="cash_payment" placeholder="0.00" value="{{ old('cash_payment') }}">
                                     </div>
-                                  
+                                    <div class="col-md-4">
+                                        <label class="form-label">G-Pay Payment (₹)</label>
+                                        <input type="number" step="0.01" class="form-control payment-input" name="gp_payment" id="gp_payment" placeholder="0.00" value="{{ old('gp_payment') }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Cheque Payment (₹)</label>
+                                        <input type="number" step="0.01" class="form-control payment-input" name="cheque_payment" id="cheque_payment" placeholder="0.00" value="{{ old('cheque_payment') }}">
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -841,16 +841,27 @@
             const focCheck = document.getElementById('focCheck');
             const totalPaymentInput = document.getElementById('total_payment');
             const discountPaymentInput = document.getElementById('discount_payment');
-            const givenPaymentInput = document.getElementById('given_payment');
+            const givenPaymentInput = document.getElementById('paid_amount');
             const duePaymentInput = document.getElementById('due_payment');
             const paymentAmountInput = document.getElementById('payment_amount');
+            const cashPaymentInput = document.getElementById('cash_payment');
+            const gpPaymentInput = document.getElementById('gp_payment');
+            const chequePaymentInput = document.getElementById('cheque_payment');
 
             function calculateDue() {
-                if (!totalPaymentInput || !discountPaymentInput || !givenPaymentInput || !duePaymentInput) return;
+                if (!totalPaymentInput || !discountPaymentInput || !duePaymentInput) return;
+                
+                const cash = parseFloat(cashPaymentInput?.value) || 0;
+                const gpay = parseFloat(gpPaymentInput?.value) || 0;
+                const cheque = parseFloat(chequePaymentInput?.value) || 0;
+                const given = cash + gpay + cheque;
+                
+                if (givenPaymentInput) {
+                    givenPaymentInput.value = given.toFixed(2);
+                }
                 
                 const total = parseFloat(totalPaymentInput.value) || 0;
                 const discount = parseFloat(discountPaymentInput.value) || 0;
-                const given = parseFloat(givenPaymentInput.value) || 0;
                 const due = (total - discount) - given;
                 duePaymentInput.value = Math.max(0, due).toFixed(2);
                 
@@ -860,7 +871,7 @@
                 }
             }
 
-            [totalPaymentInput, discountPaymentInput, givenPaymentInput].forEach(input => {
+            [totalPaymentInput, discountPaymentInput, cashPaymentInput, gpPaymentInput, chequePaymentInput].forEach(input => {
                 if (input) {
                     input.addEventListener('input', calculateDue);
                 }
@@ -873,13 +884,18 @@
                         if (paymentRow) paymentRow.style.display = 'none';
                         if (totalPaymentInput) totalPaymentInput.value = '0';
                         if (discountPaymentInput) discountPaymentInput.value = '0';
+                        if (cashPaymentInput) cashPaymentInput.value = '0';
+                        if (gpPaymentInput) gpPaymentInput.value = '0';
+                        if (chequePaymentInput) chequePaymentInput.value = '0';
                         if (givenPaymentInput) givenPaymentInput.value = '0';
                         if (paymentAmountInput) paymentAmountInput.value = '0';
                     } else {
                         if (paymentRow) paymentRow.style.display = 'block';
                         if (totalPaymentInput) totalPaymentInput.value = '0';
                         if (discountPaymentInput && discountPaymentInput.value === '0') discountPaymentInput.value = '0';
-                        if (givenPaymentInput && givenPaymentInput.value === '0') givenPaymentInput.value = '';
+                        if (cashPaymentInput && cashPaymentInput.value === '0') cashPaymentInput.value = '';
+                        if (gpPaymentInput && gpPaymentInput.value === '0') gpPaymentInput.value = '';
+                        if (chequePaymentInput && chequePaymentInput.value === '0') chequePaymentInput.value = '';
                     }
                     calculateDue();
                 });
@@ -889,6 +905,9 @@
                     if (paymentRow) paymentRow.style.display = 'none';
                     if (totalPaymentInput) totalPaymentInput.value = '0';
                     if (discountPaymentInput) discountPaymentInput.value = '0';
+                    if (cashPaymentInput) cashPaymentInput.value = '0';
+                    if (gpPaymentInput) gpPaymentInput.value = '0';
+                    if (chequePaymentInput) chequePaymentInput.value = '0';
                     if (givenPaymentInput) givenPaymentInput.value = '0';
                     if (paymentAmountInput) paymentAmountInput.value = '0';
                 }

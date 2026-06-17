@@ -544,7 +544,12 @@ class SVCController extends Controller
 
                     $totalPayment = (float) $request->input('total_payment', 0);
                     $discountPayment = (float) $request->input('discount_payment', 0);
-                    $givenPayment = (float) $request->input('given_payment', 0);
+                    
+                    $cashPayment = (float) $request->input('cash_payment', 0);
+                    $gpayPayment = (float) $request->input('gp_payment', 0);
+                    $chequePayment = (float) $request->input('cheque_payment', 0);
+                    $givenPayment = $cashPayment + $gpayPayment + $chequePayment;
+                    
                     $duePayment = (float) $request->input('due_payment', $totalPayment - $discountPayment - $givenPayment);
 
                     $invoice = Invoice::create([
@@ -561,6 +566,9 @@ class SVCController extends Controller
                         'due_payment' => $duePayment,
                         'invoice_file' => $invoiceFile,
                         'charges_data' => $chargesData,
+                        'cash_payment' => $cashPayment,
+                        'gpay_payment' => $gpayPayment,
+                        'cheque_payment' => $chequePayment,
                     ]);
 
                     // Determine branch prefix
@@ -754,7 +762,10 @@ class SVCController extends Controller
             if ($invoice) {
                 $totalPayment = (float) $request->input('total_payment', 0);
                 $discountPayment = (float) $request->input('discount_payment', 0);
-                $givenPayment = (float) $request->input('given_payment', 0);
+                $cashPayment = (float) $request->input('cash_payment', 0);
+                $gpayPayment = (float) $request->input('gp_payment', 0);
+                $chequePayment = (float) $request->input('cheque_payment', 0);
+                $givenPayment = $cashPayment + $gpayPayment + $chequePayment;
                 $duePayment = (float) $request->input('due_payment', $totalPayment - $discountPayment - $givenPayment);
 
                 $selectedChargeIds = $request->input('charge_id', []);
@@ -796,7 +807,10 @@ class SVCController extends Controller
                     'given_payment' => $givenPayment,
                     'due_payment' => $duePayment,
                     'price' => $totalPayment,
-                    'charges_data' => $chargesData
+                    'charges_data' => $chargesData,
+                    'cash_payment' => $cashPayment,
+                    'gpay_payment' => $gpayPayment,
+                    'cheque_payment' => $chequePayment
                 ]);
 
                 // Update Transactions as well
@@ -988,8 +1002,11 @@ class SVCController extends Controller
 
             $totalPayment = (float) $request->input('total_payment', 0);
             $discountPayment = (float) $request->input('discount_payment', 0);
-            $givenPayment = (float) $request->input('given_payment', 0);
-            $paymentMethod = $request->input('payment_method', 'Cash');
+            $cashPayment = (float) $request->input('cash_payment', 0);
+            $gpayPayment = (float) $request->input('gp_payment', 0);
+            $chequePayment = (float) $request->input('cheque_payment', 0);
+            $givenPayment = $cashPayment + $gpayPayment + $chequePayment;
+            $paymentMethod = $givenPayment > 0 ? 'Split' : 'None';
             $duePayment = $totalPayment - $discountPayment - $givenPayment;
 
             // New fields
@@ -1017,6 +1034,9 @@ class SVCController extends Controller
                     'discount' => $discountPayment,
                     'given_payment' => $givenPayment,
                     'due_payment' => $duePayment,
+                    'cash_payment' => $cashPayment,
+                    'gpay_payment' => $gpayPayment,
+                    'cheque_payment' => $chequePayment,
                     'charges_data' => []
                 ]);
             }
@@ -1035,6 +1055,9 @@ class SVCController extends Controller
                     'due_payment' => $duePayment,
                     'discount' => $discountPayment,
                     'price' => $totalPayment,
+                    'cash_payment' => $cashPayment,
+                    'gpay_payment' => $gpayPayment,
+                    'cheque_payment' => $chequePayment,
                     'charges_data' => $chargesData
                 ]);
 
@@ -1092,9 +1115,12 @@ class SVCController extends Controller
     {
         try {
             $patient = PatientInquiry::findOrFail($id);
-            $amount = (float) $request->input('amount', 0);
+            $cashPayment = (float) $request->input('cash_payment', 0);
+            $gpayPayment = (float) $request->input('gp_payment', 0);
+            $chequePayment = (float) $request->input('cheque_payment', 0);
+            $amount = $cashPayment + $gpayPayment + $chequePayment;
             $discount = (float) $request->input('discount', 0);
-            $method = $request->input('payment_method', 'Cash');
+            $method = $amount > 0 ? 'Split' : 'None';
             $note = $request->input('note', 'Quick Payment');
 
             if ($amount <= 0 && $discount <= 0) {
@@ -1116,6 +1142,9 @@ class SVCController extends Controller
                     'discount' => $discount,
                     'due_payment' => 0,
                     'price' => $amount + $discount,
+                    'cash_payment' => $cashPayment,
+                    'gpay_payment' => $gpayPayment,
+                    'cheque_payment' => $chequePayment,
                     'charges_data' => []
                 ]);
 
@@ -1131,6 +1160,9 @@ class SVCController extends Controller
             } else {
                 // Update existing invoice
                 $invoice->given_payment = (float) $invoice->given_payment + $amount;
+                $invoice->cash_payment = (float) ($invoice->cash_payment ?? 0) + $cashPayment;
+                $invoice->gpay_payment = (float) ($invoice->gpay_payment ?? 0) + $gpayPayment;
+                $invoice->cheque_payment = (float) ($invoice->cheque_payment ?? 0) + $chequePayment;
                 $invoice->discount = (float) $invoice->discount + $discount;
                 $invoice->due_payment = max(0, (float) $invoice->total_payment - (float) $invoice->given_payment - (float) $invoice->discount);
                 $invoice->save();

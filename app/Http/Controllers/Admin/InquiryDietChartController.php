@@ -669,7 +669,7 @@ public function store(Request $request)
             // Health Metrics section
             'diet', 'exercise', 'sleep', 'water',
             // Payment details
-            'given_payment', 'payment_method', 'due_payment',
+            'given_payment', 'cash_payment', 'gpay_payment', 'cheque_payment', 'payment_method', 'due_payment',
         ];
 
         foreach ($metaFields as $field) {
@@ -707,6 +707,9 @@ public function store(Request $request)
                         'session' => $session,
                         'months' => $months,
                         'total' => ($index === 0) ? ($request->total_payment ?? '0.00') : '0.00',
+                        'cash_payment' => $request->cash_payment ?? '',
+                        'gpay_payment' => $request->gpay_payment ?? '',
+                        'cheque_payment' => $request->cheque_payment ?? '',
                         'payment_method' => $request->payment_method ?? 'Cash',
                         'payment_date' => date('Y-m-d'),
                         'index' => $index,
@@ -728,6 +731,9 @@ public function store(Request $request)
             $opt->setMetaValue('joined_program_ids', json_encode([]));
             $opt->setMetaValue('programs_array', json_encode([]));
         }
+
+        // Sync the invoice and transactions for the new or updated inquiry
+        $this->syncDietInvoiceAndTransactions($opt, $request);
     }
 
 
@@ -1093,6 +1099,9 @@ public function store(Request $request)
                 'total_payment',
                 'discount_payment',
                 'given_payment',
+                'cash_payment',
+                'gpay_payment',
+                'cheque_payment',
                 'due_payment',
                 'payment_method',
                 'due_date',
@@ -1149,6 +1158,9 @@ public function store(Request $request)
                             'session' => $session,
                             'months' => $months,
                             'total' => ($index === 0) ? ($request->total_payment ?? '0.00') : '0.00',
+                            'cash_payment' => $request->cash_payment ?? '',
+                            'gpay_payment' => $request->gpay_payment ?? '',
+                            'cheque_payment' => $request->cheque_payment ?? '',
                             'payment_method' => $request->payment_method ?? '',
                             'payment_date' => $request->pod_bd_date ?? date('Y-m-d'),
                             'index' => $index,
@@ -1337,6 +1349,9 @@ public function store(Request $request)
                 'discount_payment',
                 'given_payment',
                 'due_payment',
+                'cash_payment',
+                'gpay_payment',
+                'cheque_payment',
                 'payment_method',
                 'due_date',
                 'lead_body_weight',
@@ -1424,6 +1439,9 @@ public function store(Request $request)
                             'session' => $session,
                             'months' => $months,
                             'total' => ($index === 0) ? ($request->total_payment ?? '0.00') : '0.00',
+                            'cash_payment' => $request->cash_payment ?? '',
+                            'gpay_payment' => $request->gpay_payment ?? '',
+                            'cheque_payment' => $request->cheque_payment ?? '',
                             'payment_method' => $request->payment_method ?? '',
                             'payment_date' => $request->pod_bd_date ?? date('Y-m-d'),
                             'index' => $index,
@@ -2239,6 +2257,9 @@ private function getAllImages($optId, $type = 'before')
                     'session' => $request->session,
                     'months' => $request->months,
                     'total' => $request->total ?? '0.00',
+                    'cash_payment' => $request->cash_payment ?? '',
+                    'gpay_payment' => $request->gpay_payment ?? '',
+                    'cheque_payment' => $request->cheque_payment ?? '',
                     'payment_method' => $request->payment_method ?? '',
                     'payment_date' => $request->payment_date ?? date('Y-m-d'),
                     'index' => 0,
@@ -2303,6 +2324,9 @@ private function getAllImages($optId, $type = 'before')
                 'total_payment',
                 'discount_payment',
                 'given_payment',
+                'cash_payment',
+                'gpay_payment',
+                'cheque_payment',
                 'due_payment',
                 'payment_method',
                 'due_date',
@@ -2689,6 +2713,8 @@ private function getAllImages($optId, $type = 'before')
             return;
         }
 
+        \Log::info("syncDietInvoiceAndTransactions: Proceeding to create invoice for patient_id: {$patient->patient_id}, opt_id: {$opt->id}");
+
         $totalPayment = (float) ($request->total_payment ?? $request->total ?? 0);
         $discountPayment = (float) ($request->discount_payment ?? $request->discount ?? 0);
         $givenPayment = (float) ($request->given_payment ?? $request->given ?? 0);
@@ -2760,6 +2786,9 @@ private function getAllImages($optId, $type = 'before')
             'total_payment' => $totalPayment,
             'discount' => $discountPayment,
             'given_payment' => $givenPayment,
+            'cash_payment' => $request->cash_payment ?? $request->cash ?? 0,
+            'gpay_payment' => $request->gpay_payment ?? $request->gpay ?? 0,
+            'cheque_payment' => $request->cheque_payment ?? $request->cheque ?? 0,
             'due_payment' => $duePayment,
             'programs_data' => $validPrograms,
         ];
@@ -2770,8 +2799,10 @@ private function getAllImages($optId, $type = 'before')
 
         if ($invoice) {
             $invoice->update($invoiceData);
+            \Log::info("syncDietInvoiceAndTransactions: Invoice updated, invoice_no: {$invoice->invoice_no}");
         } else {
             $invoice = \App\Models\Invoice::create($invoiceData);
+            \Log::info("syncDietInvoiceAndTransactions: Invoice created, invoice_no: {$invoice->invoice_no}");
         }
 
         // Description details

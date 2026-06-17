@@ -150,6 +150,10 @@ class InquiryController extends Controller
             $inquiry->setMeta('inquiry_by', $request->inquiry_by);
             $inquiry->setMeta('client', $request->client);
             $inquiry->setMeta('payment', $request->payment);
+            $inquiry->setMeta('cash_payment', $request->cash_payment);
+            $inquiry->setMeta('gpay_payment', $request->gpay_payment);
+            $inquiry->setMeta('cheque_payment', $request->cheque_payment);
+            $inquiry->setMeta('given_payment', $request->given_payment);
             $inquiry->setMeta('foc', $request->has('foc') ? '1' : '0');
             $inquiry->setMeta('time', $request->time);
             $inquiry->setMeta('date', $request->date);

@@ -1611,7 +1611,7 @@
                                                     <div class="form-col">
                                                         <label for="given_payment">Paid Amount (₹)</label>
                                                         <input type="number" id="given_payment" name="given_payment"
-                                                            placeholder="0.00" step="0.01"
+                                                            placeholder="0.00" step="0.01" readonly style="background-color: #f8f9fa;"
                                                             value="{{ $patient->getMeta('given_payment') }}">
                                                     </div>
                                                 </div>
@@ -1620,13 +1620,26 @@
                                             <div class="pro_filed d-sm-block d-md-flex mt-3">
                                                 <div class="form">
                                                     <div class="form-col">
-                                                        <label for="payment_method">Payment Method</label>
-                                                        @php $method = $patient->getMeta('payment_method'); @endphp
-                                                        <select class="form-select" id="payment_method" name="payment_method">
-                                                            <option value="Cash"   {{ ($method == 'Cash'   || !$method) ? 'selected' : '' }}>Cash</option>
-                                                            <option value="Online" {{ ($method == 'Online') ? 'selected' : '' }}>Online</option>
-                                                            <option value="Cheque" {{ ($method == 'Cheque') ? 'selected' : '' }}>Cheque</option>
-                                                        </select>
+                                                        <label for="cash_payment">Cash Payment (₹)</label>
+                                                        <input type="number" id="cash_payment" name="cash_payment"
+                                                            placeholder="0.00" step="0.01"
+                                                            value="{{ $patient->getMeta('cash_payment') ?? '' }}">
+                                                    </div>
+                                                </div>
+                                                <div class="form">
+                                                    <div class="form-col">
+                                                        <label for="gp_payment">G-Pay (₹)</label>
+                                                        <input type="number" id="gp_payment" name="gp_payment"
+                                                            placeholder="0.00" step="0.01"
+                                                            value="{{ $patient->getMeta('gp_payment') ?? '' }}">
+                                                    </div>
+                                                </div>
+                                                <div class="form">
+                                                    <div class="form-col">
+                                                        <label for="cheque_payment">Cheque (₹)</label>
+                                                        <input type="number" id="cheque_payment" name="cheque_payment"
+                                                            placeholder="0.00" step="0.01"
+                                                            value="{{ $patient->getMeta('cheque_payment') ?? '' }}">
                                                     </div>
                                                 </div>
                                                 <div class="form">
@@ -1691,6 +1704,16 @@
                                         }
 
                                         function recalcDue() {
+                                            const cashInput = document.getElementById('cash_payment');
+                                            const gpayInput = document.getElementById('gp_payment');
+                                            const chequeInput = document.getElementById('cheque_payment');
+                                            
+                                            const cash = parseFloat(cashInput?.value) || 0;
+                                            const gpay = parseFloat(gpayInput?.value) || 0;
+                                            const cheque = parseFloat(chequeInput?.value) || 0;
+                                            
+                                            if (givenInput) givenInput.value = (cash + gpay + cheque).toFixed(2);
+                                            
                                             const total    = parseFloat(totalPaymentInput?.value) || 0;
                                             const discount = parseFloat(discountInput?.value) || 0;
                                             const given    = parseFloat(givenInput?.value) || 0;
@@ -1700,6 +1723,13 @@
                                                 dueInput.style.color = due > 0 ? '#ef4444' : '#198754';
                                             }
                                         }
+
+                                        document.addEventListener('DOMContentLoaded', () => {
+                                            document.getElementById('discount_payment')?.addEventListener('input', recalcDue);
+                                            document.getElementById('cash_payment')?.addEventListener('input', recalcDue);
+                                            document.getElementById('gp_payment')?.addEventListener('input', recalcDue);
+                                            document.getElementById('cheque_payment')?.addEventListener('input', recalcDue);
+                                        });
 
                                         function addCharge(charge) {
                                             if (selectedItems.includes(charge.charges_name)) return;

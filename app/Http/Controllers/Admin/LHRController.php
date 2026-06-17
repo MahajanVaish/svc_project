@@ -163,8 +163,9 @@ class LHRController extends Controller
             'discount_payment' => 'nullable|numeric|min:0',
             'given_payment' => 'nullable|numeric|min:0',
             'due_payment' => 'nullable|numeric|min:0',
-            'payment_method' => 'nullable|in:Cash,Online,Cheque',
-            'payment_amount' => 'nullable|numeric|min:0',
+            'cash_payment' => 'nullable|numeric|min:0',
+            'gp_payment' => 'nullable|numeric|min:0',
+            'cheque_payment' => 'nullable|numeric|min:0',
 
             // Files
             'before_picture_1' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -243,7 +244,10 @@ class LHRController extends Controller
             // PAYMENTS
             $total = $request->total_payment ? floatval($request->total_payment) : 0; // Use provided value or default to 0
             $discount = $request->discount_payment ?? 0;
-            $given = $request->given_payment ? floatval($request->given_payment) : 0;
+            $cash = $request->cash_payment ? floatval($request->cash_payment) : 0;
+            $gpay = $request->gp_payment ? floatval($request->gp_payment) : 0;
+            $cheque = $request->cheque_payment ? floatval($request->cheque_payment) : 0;
+            $given = $cash + $gpay + $cheque;
             $due = $request->due_payment ? floatval($request->due_payment) : max(0, ($total - $discount) - $given); // Use calculated due from form or recalculate
 
             $foc = $request->has('foc');
@@ -303,8 +307,9 @@ class LHRController extends Controller
                 'discount_payment' => $foc ? 0 : $discount,
                 'given_payment' => $foc ? 0 : $given,
                 'due_payment' => $foc ? 0 : $due,
-                'payment_method' => $foc ? null : $request->payment_method,
-                'payment_amount' => $foc ? 0 : ($request->payment_amount ?? 0),
+                'cash_payment' => $foc ? 0 : $cash,
+                'google_pay' => $foc ? 0 : $gpay,
+                'cheque_payment' => $foc ? 0 : $cheque,
 
                 // Files
                 'before_picture_1' => $beforePicturePaths['before_picture_1'],
@@ -331,7 +336,8 @@ class LHRController extends Controller
 
             // Create Invoice if there's registration charge (not FOC)
             if (!$foc && $total > 0) {
-                $this->createLHRInquiryInvoice($inquiry, $total, $given, $due, $request->payment_method, $discount);
+                $paymentMethod = $given > 0 ? 'Split' : 'None';
+                $this->createLHRInquiryInvoice($inquiry, $total, $given, $due, $paymentMethod, $discount, $cash, $gpay, $cheque);
             }
 
             DB::commit();
@@ -484,8 +490,9 @@ class LHRController extends Controller
             'discount_payment' => 'nullable|numeric|min:0',
             'given_payment' => 'nullable|numeric|min:0',
             'due_payment' => 'nullable|numeric|min:0',
-            'payment_method' => 'nullable|in:Cash,Online,Cheque',
-            'payment_amount' => 'nullable|numeric|min:0',
+            'cash_payment' => 'nullable|numeric|min:0',
+            'gp_payment' => 'nullable|numeric|min:0',
+            'cheque_payment' => 'nullable|numeric|min:0',
 
             // Files
             'before_picture_1' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
@@ -603,16 +610,23 @@ class LHRController extends Controller
             if (!$validated['foc']) {
                 $total = $validated['total_payment'] ?? 0;
                 $discount = $validated['discount_payment'] ?? 0;
-                $given = $validated['given_payment'] ?? 0;
+                $cash = $validated['cash_payment'] ?? 0;
+                $gpay = $validated['gp_payment'] ?? 0;
+                $cheque = $validated['cheque_payment'] ?? 0;
+                $given = $cash + $gpay + $cheque;
+                $validated['given_payment'] = $given;
                 $due = ($total - $discount) - $given;
                 $validated['due_payment'] = max(0, $due);
+                $validated['google_pay'] = $gpay;
+                unset($validated['gp_payment']);
             } else {
                 $validated['total_payment'] = 0;
                 $validated['discount_payment'] = 0;
                 $validated['given_payment'] = 0;
                 $validated['due_payment'] = 0;
-                $validated['payment_method'] = null;
-                $validated['payment_amount'] = 0;
+                $validated['cash_payment'] = 0;
+                $validated['google_pay'] = 0;
+                $validated['cheque_payment'] = 0;
             }
 
             // Format time
@@ -965,7 +979,10 @@ class LHRController extends Controller
 
             $registrationCharges = $isFoc ? 0 : ($request->registration_charges ?? 0);
             $discountAmount = $isFoc ? 0 : ($request->discount_payment ?? 0);
-            $paidAmount = $isFoc ? 0 : ($request->paid_amount ?? 0);
+            $cash = $isFoc ? 0 : floatval($request->cash_payment ?? 0);
+            $gpay = $isFoc ? 0 : floatval($request->gp_payment ?? 0);
+            $cheque = $isFoc ? 0 : floatval($request->cheque_payment ?? 0);
+            $paidAmount = $cash + $gpay + $cheque;
             $dueAmount = $isFoc ? 0 : ($request->due_amount ?? 0);
 
             // Calculate due amount if not provided
@@ -1023,15 +1040,15 @@ class LHRController extends Controller
                         'refranceby' => $request->refranceby ?? '',
                         'next_follow_date' => $request->next_follow_date ?? '',
                         'notes' => $request->notes ?? '',
-                        'payment_method' => $request->payment_method ?? '',
+                        'payment_method' => $paidAmount > 0 ? 'Split' : 'None',
                         'total_payment' => ($firstFollowup === null) ? $registrationCharges : 0,
                         'discount_payment' => ($firstFollowup === null) ? $discountAmount : 0,
                         'given_payment' => ($firstFollowup === null) ? $paidAmount : 0,
                         'due_payment' => ($firstFollowup === null) ? $dueAmount : 0,
                         'foc' => $isFoc ? 1 : 0,
-                        'cash_price' => ($firstFollowup === null && $request->payment_method === 'cash') ? $paidAmount : 0,
-                        'gpay_price' => ($firstFollowup === null && $request->payment_method === 'online') ? $paidAmount : 0,
-                        'cheque_price' => ($firstFollowup === null && $request->payment_method === 'card') ? $paidAmount : 0,
+                        'cash_price' => ($firstFollowup === null) ? $cash : 0,
+                        'gpay_price' => ($firstFollowup === null) ? $gpay : 0,
+                        'cheque_price' => ($firstFollowup === null) ? $cheque : 0,
                         'delete_status' => 'active',
                         'delete_by' => auth()->user()->name ?? 'system',
                     ]);
@@ -1065,12 +1082,15 @@ class LHRController extends Controller
                     'refranceby' => $request->refranceby ?? '',
                     'next_follow_date' => $request->next_follow_date ?? '',
                     'notes' => $request->notes ?? '',
-                    'payment_method' => $request->payment_method ?? '',
+                    'payment_method' => $paidAmount > 0 ? 'Split' : 'None',
                     'total_payment' => $registrationCharges,
                     'discount_payment' => 0,
                     'given_payment' => $paidAmount,
                     'due_payment' => $dueAmount,
                     'foc' => $isFoc ? 1 : 0,
+                    'cash_price' => $cash,
+                    'gpay_price' => $gpay,
+                    'cheque_price' => $cheque,
                     'delete_status' => 'active',
                     'delete_by' => auth()->user()->name ?? 'system',
                 ]);
@@ -1085,7 +1105,8 @@ class LHRController extends Controller
 
             // Create Invoice if there's payment (not FOC and registration charges > 0)
             if (!$isFoc && $registrationCharges > 0 && $firstFollowup) {
-                $this->createLHRFollowupInvoice($inquiry, $firstFollowup, $registrationCharges, $paidAmount, $dueAmount, $request->payment_method, $discountAmount);
+                $paymentMethod = $paidAmount > 0 ? 'Split' : 'None';
+                $this->createLHRFollowupInvoice($inquiry, $firstFollowup, $registrationCharges, $paidAmount, $dueAmount, $paymentMethod, $discountAmount, $cash, $gpay, $cheque);
             }
 
             return redirect()->route('lhr.patient.profile', $id)
@@ -1103,7 +1124,7 @@ class LHRController extends Controller
     /**
      * Create invoice for LHR inquiry
      */
-    private function createLHRInquiryInvoice($inquiry, $registrationCharges, $paidAmount, $dueAmount, $paymentMethod, $discount = 0)
+    private function createLHRInquiryInvoice($inquiry, $registrationCharges, $paidAmount, $dueAmount, $paymentMethod, $discount = 0, $cash = 0, $gpay = 0, $cheque = 0)
     {
         try {
             // Generate unique invoice number
@@ -1132,6 +1153,9 @@ class LHRController extends Controller
                 'discount' => $discount,
                 'given_payment' => $paidAmount,
                 'due_payment' => $dueAmount,
+                'cash_payment' => $cash,
+                'gpay_payment' => $gpay,
+                'cheque_payment' => $cheque,
                 'invoice_file' => null,
                 'charges_data' => [
                     [
@@ -1210,7 +1234,7 @@ class LHRController extends Controller
     /**
      * Create invoice for LHR followup
      */
-    private function createLHRFollowupInvoice($inquiry, $followup, $registrationCharges, $paidAmount, $dueAmount, $paymentMethod, $discount = 0)
+    private function createLHRFollowupInvoice($inquiry, $followup, $registrationCharges, $paidAmount, $dueAmount, $paymentMethod, $discount = 0, $cash = 0, $gpay = 0, $cheque = 0)
     {
         try {
             // Generate unique invoice number
@@ -1239,6 +1263,9 @@ class LHRController extends Controller
                 'discount' => $discount,
                 'given_payment' => $paidAmount,
                 'due_payment' => $dueAmount,
+                'cash_payment' => $cash,
+                'gpay_payment' => $gpay,
+                'cheque_payment' => $cheque,
                 'invoice_file' => null,
                 'charges_data' => [
                     [

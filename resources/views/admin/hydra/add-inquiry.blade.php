@@ -502,24 +502,24 @@
                                             value="{{ old('total_payment') }}" placeholder="0.00">
                                     </div>
                                     <div class="form">
-                                        <label for="givenPayment">Paid Amount (₹)</label>
+                                        <label for="givenPayment">Given Payment (₹)</label>
                                         <input type="number" step="0.01" name="given_payment" id="givenPayment"
-                                            value="{{ old('given_payment') }}" placeholder="0.00">
+                                            value="{{ old('given_payment') }}" placeholder="0.00" readonly style="background-color: #f8f9fa;">
                                     </div>
                                 </div>
 
                                 <div class="pro_filed mt-3">
                                     <div class="form">
-                                        <label for="payment_method">Payment Method</label>
-                                        <select name="payment_method" id="payment_method">
-                                            <option value="">Select Method</option>
-                                            <option value="Cash" {{ old('payment_method') == 'Cash' ? 'selected' : '' }}>Cash
-                                            </option>
-                                            <option value="Online" {{ old('payment_method') == 'Online' ? 'selected' : '' }}>
-                                                Online</option>
-                                            <option value="Cheque" {{ old('payment_method') == 'Cheque' ? 'selected' : '' }}>
-                                                Cheque</option>
-                                        </select>
+                                        <label for="cash_payment">Cash Payment (₹)</label>
+                                        <input type="number" step="0.01" name="cash_payment" id="cash_payment" class="payment-input" placeholder="0.00" value="{{ old('cash_payment') }}">
+                                    </div>
+                                    <div class="form">
+                                        <label for="gp_payment">G-Pay Payment (₹)</label>
+                                        <input type="number" step="0.01" name="gp_payment" id="gp_payment" class="payment-input" placeholder="0.00" value="{{ old('gp_payment') }}">
+                                    </div>
+                                    <div class="form">
+                                        <label for="cheque_payment">Cheque Payment (₹)</label>
+                                        <input type="number" step="0.01" name="cheque_payment" id="cheque_payment" class="payment-input" placeholder="0.00" value="{{ old('cheque_payment') }}">
                                     </div>
                                     <div class="form">
                                         <label for="duePayment">Due Payment (₹)</label>
@@ -559,8 +559,9 @@
             const discountPayment = document.getElementById('discountPayment');
             const givenPayment = document.getElementById('givenPayment');
             const duePayment = document.getElementById('duePayment');
-            const cashPayment = document.getElementById('cashPayment');
-            const googlePay = document.getElementById('googlePay');
+            const cashPayment = document.getElementById('cash_payment');
+            const gpPayment = document.getElementById('gp_payment');
+            const chequePayment = document.getElementById('cheque_payment');
             const statusNameSelect = document.getElementById('status_name');
             const sessionFollowUpSection = document.getElementById('sessionFollowUpSection');
 
@@ -577,19 +578,26 @@
                 toggleSessionFollowUp(); // Initial check
             }
 
-            const paymentInputs = [totalPayment, givenPayment];
+            const paymentInputs = [totalPayment, cashPayment, gpPayment, chequePayment];
 
             function calculateDuePayment() {
-                const total = parseFloat(totalPayment.value) || 0;
-                const given = parseFloat(givenPayment.value) || 0;
+                const total = parseFloat(totalPayment?.value) || 0;
+                const cash = parseFloat(cashPayment?.value) || 0;
+                const gpay = parseFloat(gpPayment?.value) || 0;
+                const cheque = parseFloat(chequePayment?.value) || 0;
+                const given = cash + gpay + cheque;
+                
+                if (givenPayment) givenPayment.value = given.toFixed(2);
 
                 const due = total - given;
-                duePayment.value = Math.max(0, due).toFixed(2);
+                if (duePayment) duePayment.value = Math.max(0, due).toFixed(2);
 
-                if (due > 0) {
-                    duePayment.style.color = '#ef4444';
-                } else {
-                    duePayment.style.color = 'var(--accent-solid)';
+                if (duePayment) {
+                    if (due > 0) {
+                        duePayment.style.color = '#ef4444';
+                    } else {
+                        duePayment.style.color = 'var(--accent-solid)';
+                    }
                 }
             }
 

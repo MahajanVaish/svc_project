@@ -136,7 +136,9 @@ public function storeInquiry(Request $request)
         'total_payment' => 'nullable|numeric|min:0',
         'given_payment' => 'nullable|numeric|min:0',
         'due_payment' => 'nullable|numeric|min:0',
-        'payment_method' => 'nullable|in:Cash,Online,Cheque',
+        'cash_payment' => 'nullable|numeric|min:0',
+        'gp_payment' => 'nullable|numeric|min:0',
+        'cheque_payment' => 'nullable|numeric|min:0',
         'status_name' => 'required|in:pending,joined',
         'branch_id' => 'required|string',
         'diet' => 'nullable|string|max:255',
@@ -195,17 +197,24 @@ public function storeInquiry(Request $request)
         }
 
         // Determine payment mode from payment method dropdown
-        $paymentMode = $request->payment_method ?: null;
+        $cash = $request->cash_payment ?? 0;
+        $gpay = $request->gp_payment ?? 0;
+        $cheque = $request->cheque_payment ?? 0;
+        $given = $cash + $gpay + $cheque;
+        
+        $paymentMode = $given > 0 ? 'Split' : null;
 
         // Handle FOC (Free of Cost) logic
         $foc = $request->has('foc') ? true : false;
         $total = $request->total_payment ?? 0;
-        $given = $request->given_payment ?? 0;
         
         // If FOC is true, set all payments to 0
         if ($foc) {
             $total = 0;
             $given = 0;
+            $cash = 0;
+            $gpay = 0;
+            $cheque = 0;
             $duePayment = 0;
         }
 
@@ -233,7 +242,10 @@ public function storeInquiry(Request $request)
             'total_payment' => $total,
             'given_payment' => $given,
             'due_payment' => $duePayment,
-            'payment_mode' => $foc ? 'FOC' : ($request->payment_method ?: null),
+            'cash_payment' => $cash,
+            'google_pay' => $gpay,
+            'cheque_payment' => $cheque,
+            'payment_mode' => $foc ? 'FOC' : $paymentMode,
             
             // Status
             'status_name' => $request->status_name,
@@ -245,7 +257,7 @@ public function storeInquiry(Request $request)
 
         // Create/Update Invoice and Transactions if payment is set
         if ($total > 0 && $branch) {
-            $this->createHydraInvoice($inquiry, $branch, $total, $given, $paymentMode, $duePayment);
+            $this->createHydraInvoice($inquiry, $branch, $total, $given, $paymentMode, $duePayment, $cash, $gpay, $cheque);
         }
 
         DB::commit();
@@ -312,7 +324,9 @@ public function storeInquiry(Request $request)
             'total_payment' => 'nullable|numeric|min:0',
             'given_payment' => 'nullable|numeric|min:0',
             'due_payment' => 'nullable|numeric|min:0',
-            'payment_method' => 'nullable|in:Cash,Online,Cheque',
+            'cash_payment' => 'nullable|numeric|min:0',
+            'gp_payment' => 'nullable|numeric|min:0',
+            'cheque_payment' => 'nullable|numeric|min:0',
             'status_name' => 'required|in:pending,joined',
             'diet' => 'nullable|string|max:255',
             'exercise' => 'nullable|string|max:255',
@@ -330,16 +344,20 @@ public function storeInquiry(Request $request)
             $inquiry = HydraInquiry::findOrFail($id);
 
             // Calculate due payment if not provided
+            $cash = $request->cash_payment ?? 0;
+            $gpay = $request->gp_payment ?? 0;
+            $cheque = $request->cheque_payment ?? 0;
+            $given = $cash + $gpay + $cheque;
+
             $duePayment = $request->due_payment;
             if (!$request->has('due_payment') || $request->due_payment === null) {
                 $total = $request->total_payment ?? 0;
-                $given = $request->given_payment ?? 0;
                 $duePayment = $total - $given;
                 $duePayment = max(0, $duePayment);
             }
 
             // Determine payment mode from payment method dropdown
-            $paymentMode = $request->payment_method ?: null;
+            $paymentMode = $given > 0 ? 'Split' : null;
 
             // Update inquiry
             $inquiry->update([
@@ -355,9 +373,12 @@ public function storeInquiry(Request $request)
                 'next_follow_up' => $request->next_follow_up,
                 'foc' => $request->has('foc') ? true : false,
                 'total_payment' => $request->total_payment ?? 0,
-                'given_payment' => $request->given_payment ?? 0,
+                'given_payment' => $given ?? 0,
                 'due_payment' => $duePayment ?? 0,
-                'payment_mode' => $request->has('foc') ? 'FOC' : ($request->payment_method ?: null),
+                'cash_payment' => $request->has('foc') ? 0 : $cash,
+                'google_pay' => $request->has('foc') ? 0 : $gpay,
+                'cheque_payment' => $request->has('foc') ? 0 : $cheque,
+                'payment_mode' => $request->has('foc') ? 'FOC' : $paymentMode,
                 'status_name' => $request->status_name,
                 'diet' => $request->diet,
                 'exercise' => $request->exercise,
@@ -370,7 +391,7 @@ public function storeInquiry(Request $request)
             if ($total > 0 || $request->has('foc')) {
                 $branch = Branch::where('branch_id', $inquiry->branch_id)->first();
                 if ($branch) {
-                    $this->createHydraInvoice($inquiry, $branch, $total, $request->given_payment ?? 0, $request->payment_method, $duePayment ?? 0);
+                    $this->createHydraInvoice($inquiry, $branch, $total, $given ?? 0, $paymentMode, $duePayment ?? 0, $cash, $gpay, $cheque);
                 }
             }
 
@@ -513,7 +534,11 @@ public function storeInquiry(Request $request)
             // Calculate due payment
             $total = $request->total_payment ?? 0;
             $discount = $request->discount_payment ?? 0;
-            $given = $request->given_payment ?? 0;
+            $cash = $request->cash_payment ?? 0;
+            $gpay = $request->gp_payment ?? 0;
+            $cheque = $request->cheque_payment ?? 0;
+            $given = $cash + $gpay + $cheque;
+            
             $duePayment = ($total - $discount) - $given;
             $duePayment = max(0, $duePayment);
 
@@ -531,8 +556,9 @@ public function storeInquiry(Request $request)
                 'discount_payment' => $discount,
                 'given_payment' => $given,
                 'due_payment' => $duePayment,
-                'cash_payment' => $request->cash_payment ?? 0,
-                'google_pay' => $request->google_pay ?? 0,
+                'cash_payment' => $cash,
+                'google_pay' => $gpay,
+                'cheque_payment' => $cheque,
                 'phone_number' => $request->phone_number,
                 'session' => $request->input('session'),
                 'address' => $request->address,
@@ -541,7 +567,8 @@ public function storeInquiry(Request $request)
 
             // Create/Update Invoice and Transactions if payment is set
             if ($total > 0 && !$followUp->foc) {
-                $this->createHydraFollowupInvoice($inquiry, $followUp, $total, $given, $duePayment);
+                $paymentMethod = $given > 0 ? 'Split' : 'None';
+                $this->createHydraFollowupInvoice($inquiry, $followUp, $total, $given, $duePayment, $paymentMethod, $cash, $gpay, $cheque);
             }
 
             return redirect()->route('hydra.patient.profile', $id)
@@ -744,7 +771,7 @@ public function storeInquiry(Request $request)
     /**
      * Helper to create or update invoice and transactions for Hydra inquiries.
      */
-    private function createHydraInvoice($inquiry, $branch, $totalPayment, $givenPayment, $paymentMethod, $duePayment)
+    private function createHydraInvoice($inquiry, $branch, $totalPayment, $givenPayment, $paymentMethod, $duePayment, $cash = 0, $gpay = 0, $cheque = 0)
     {
         $invoiceNo = 'INV-HYD-' . $inquiry->patient_id;
         
@@ -759,6 +786,9 @@ public function storeInquiry(Request $request)
                 'total_payment' => $totalPayment,
                 'given_payment' => $givenPayment,
                 'due_payment' => $duePayment,
+                'cash_payment' => $cash,
+                'gpay_payment' => $gpay,
+                'cheque_payment' => $cheque,
                 'branch_id' => $branch->branch_id,
             ]);
             
@@ -809,6 +839,9 @@ public function storeInquiry(Request $request)
                 'total_payment' => $totalPayment,
                 'given_payment' => $givenPayment,
                 'due_payment' => $duePayment,
+                'cash_payment' => $cash,
+                'gpay_payment' => $gpay,
+                'cheque_payment' => $cheque,
                 'invoice_file' => $invoiceFile,
                 'charges_data' => $chargesData,
             ]);
@@ -839,7 +872,7 @@ public function storeInquiry(Request $request)
     /**
      * Helper to create or update invoice and transactions for Hydra followups.
      */
-    private function createHydraFollowupInvoice($inquiry, $followup, $totalPayment, $givenPayment, $duePayment)
+    private function createHydraFollowupInvoice($inquiry, $followup, $totalPayment, $givenPayment, $duePayment, $paymentMethod = 'Split', $cash = 0, $gpay = 0, $cheque = 0)
     {
         $invoiceNo = 'INV-FOL-HYD-' . $inquiry->patient_id . '-' . time();
         
@@ -858,6 +891,9 @@ public function storeInquiry(Request $request)
             'total_payment' => $totalPayment,
             'given_payment' => $givenPayment,
             'due_payment' => $duePayment,
+            'cash_payment' => $cash,
+            'gpay_payment' => $gpay,
+            'cheque_payment' => $cheque,
             'charges_data' => [[
                 'charge_name' => 'Hydra Followup Service',
                 'amount' => $totalPayment,

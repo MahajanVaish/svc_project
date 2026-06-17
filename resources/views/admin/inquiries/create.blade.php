@@ -230,7 +230,7 @@
                         <!-- Payment -->
                         <div class="mb-3">
                             <label class="form-label" style="font-size: 13px; font-weight: 500; color: #333; margin-bottom: 6px;">
-                                Payment
+                                Payment Status
                             </label>
                             <select name="payment" class="form-control form-control-sm"
                                     style="font-size: 13px; padding: 8px 12px; border-radius: 4px; border: 1px solid #ced4da;">
@@ -240,6 +240,24 @@
                                 <option value="Partial">Partial</option>
                                 <option value="Free">Free</option>
                             </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" style="font-size: 13px; font-weight: 500; color: #333; margin-bottom: 6px;">Cash (₹)</label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="cash_payment" id="cash_payment" placeholder="0.00" value="0">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" style="font-size: 13px; font-weight: 500; color: #333; margin-bottom: 6px;">G-Pay (₹)</label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="gpay_payment" id="gpay_payment" placeholder="0.00" value="0">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label" style="font-size: 13px; font-weight: 500; color: #333; margin-bottom: 6px;">Cheque (₹)</label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="cheque_payment" id="cheque_payment" placeholder="0.00" value="0">
+                            </div>
+                            <div class="col-md-12 mb-3">
+                                <label class="form-label" style="font-size: 13px; font-weight: 500; color: #333; margin-bottom: 6px;">Given Payment (₹)</label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="given_payment" id="given_payment" placeholder="0.00" readonly style="background-color: #f8f9fa;">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -298,6 +316,23 @@
             heightInput.addEventListener('input', calculateBMI);
             weightInput.addEventListener('input', calculateBMI);
         }
+
+        // Payment calculation
+        const cashInput = document.getElementById('cash_payment');
+        const gpayInput = document.getElementById('gpay_payment');
+        const chequeInput = document.getElementById('cheque_payment');
+        const givenInput = document.getElementById('given_payment');
+
+        function calculateGivenPayment() {
+            const cash = parseFloat(cashInput?.value) || 0;
+            const gpay = parseFloat(gpayInput?.value) || 0;
+            const cheque = parseFloat(chequeInput?.value) || 0;
+            if (givenInput) givenInput.value = (cash + gpay + cheque).toFixed(2);
+        }
+
+        [cashInput, gpayInput, chequeInput].forEach(input => {
+            if (input) input.addEventListener('input', calculateGivenPayment);
+        });
         
         // Set current date and time
         function setCurrentDateTime() {
