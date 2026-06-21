@@ -563,7 +563,15 @@
                                             data-bs-target="#labHistoryModal"
                                             style="background-color: #086838; border-color: #086838; font-weight: bold; border-radius: 6px; font-size: 13px;">
                                             <i class="fas fa-history me-1"></i> View Lab & Lipid History
-                                            ({{ count($labHistory) }})
+                                            @php
+                                                $labHistoryCount = 0;
+                                                try {
+                                                    $labHistoryCount = count($labHistory ?? []);
+                                                } catch (\Throwable $e) {
+                                                    \Log::error("Error in labHistory count at line 566: " . $e->getMessage() . " | Variable type: " . gettype($labHistory));
+                                                }
+                                            @endphp
+                                            ({{ $labHistoryCount }})
                                         </button>
                                     </div>
 
@@ -784,7 +792,7 @@
                                             data-bs-target="#programHistoryModal"
                                             style="background-color: #086838; border-color: #086838; font-weight: bold; border-radius: 6px; font-size: 13px;">
                                             <i class="fas fa-history me-1"></i> View Program History
-                                            ({{ count($allProgramHistory) }})
+                                            ({{ count($allProgramHistory ?? []) }})
                                         </button>
                                     </div>
 
@@ -1707,7 +1715,7 @@
                         aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4" style="max-height: 75vh; overflow-y: auto;">
-                    @if(empty($labHistory))
+                    @if(empty($labHistory ?? []))
                         <div class="text-center py-5 text-muted">
                             <i class="fas fa-flask fa-3x mb-3 opacity-50" style="color: #6c757d;"></i>
                             <h5 class="fw-semibold">No Previous Laboratory Records</h5>
@@ -1745,7 +1753,16 @@
                                 <tbody>
                                     <!-- Group 1: Lipid Profile -->
                                     <tr class="table-secondary fw-bold">
-                                        <td colspan="{{ count($labHistory) + 1 }}" class="text-start ps-3"><i
+                                        @php
+                                            $colSpanCount = 1;
+                                            try {
+                                                $colSpanCount = count($labHistory ?? []) + 1;
+                                            } catch (\Throwable $e) {
+                                                \Log::error("Error in labHistory count at line 1748: " . $e->getMessage());
+                                                $colSpanCount = 1;
+                                            }
+                                        @endphp
+                                        <td colspan="{{ $colSpanCount }}" class="text-start ps-3"><i
                                                 class="fas fa-heartbeat text-danger me-1"></i> Lipid Profile</td>
                                     </tr>
                                     @php
@@ -1772,7 +1789,16 @@
 
                                     <!-- Group 2: Laboratory Investigation -->
                                     <tr class="table-secondary fw-bold">
-                                        <td colspan="{{ count($labHistory) + 1 }}" class="text-start ps-3"><i
+                                        @php
+                                            $colSpanCount2 = 1;
+                                            try {
+                                                $colSpanCount2 = count($labHistory ?? []) + 1;
+                                            } catch (\Throwable $e) {
+                                                \Log::error("Error in labHistory count at line 1775: " . $e->getMessage());
+                                                $colSpanCount2 = 1;
+                                            }
+                                        @endphp
+                                        <td colspan="{{ $colSpanCount2 }}" class="text-start ps-3"><i
                                                 class="fas fa-flask text-primary me-1"></i> General Laboratory Investigation
                                         </td>
                                     </tr>
@@ -1839,7 +1865,7 @@
     </div>
 
     <script>
-        const labHistoryData = @json($labHistory);
+        const labHistoryData = @json($labHistory ?? []);
         function fillFormFromHistory(index) {
             const entry = labHistoryData[index];
             if (!entry || !entry.data) return;
@@ -2575,8 +2601,14 @@
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label small fw-bold">Physical Activity</label>
-                                                <input type="text" name="physical_activity"
-                                                    class="form-control form-control-sm">
+                                                <select id="physicalActivityInput" name="physical_activity" class="form-select form-select-sm">
+                                                    <option value="" {{ ($latestMeta['physical_activity'] ?? '') == '' ? 'selected' : '' }}>Select Activity</option>
+                                                    <option value="Sedentary (Very Low Activity)" {{ ($latestMeta['physical_activity'] ?? '') == 'Sedentary (Very Low Activity)' ? 'selected' : '' }}>Sedentary (Very Low Activity)</option>
+                                                    <option value="Lightly Active" {{ ($latestMeta['physical_activity'] ?? '') == 'Lightly Active' ? 'selected' : '' }}>Lightly Active</option>
+                                                    <option value="Moderately Active" {{ ($latestMeta['physical_activity'] ?? '') == 'Moderately Active' ? 'selected' : '' }}>Moderately Active</option>
+                                                    <option value="Very Active" {{ ($latestMeta['physical_activity'] ?? '') == 'Very Active' ? 'selected' : '' }}>Very Active</option>
+                                                    <option value="Extra Active" {{ ($latestMeta['physical_activity'] ?? '') == 'Extra Active' ? 'selected' : '' }}>Extra Active</option>
+                                                </select>
                                             </div>
                                             <div class="col-md-6">
                                                 <label class="form-label small fw-bold">Fasting Day</label>

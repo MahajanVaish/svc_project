@@ -61,9 +61,10 @@ class AccInquiry extends Model
 
     protected $casts = [
         'branch_id' => 'string',
-        'status_history' => 'array',
-        // user_status is a plain string scalar (e.g. 'Pending', 'Diet Chart')
-        // Do NOT cast it as array — that would break JSON decode on plain strings
+        // NOTE: status_history is intentionally NOT cast here.
+        // A custom getStatusHistoryAttribute accessor handles decoding and always returns []
+        // for null/invalid values. In Laravel 12, casts take priority over accessors and
+        // would return null for null DB values, causing count(null) TypeError in PHP 8+.
     ];
 
     public function getInquiryDateAttribute($value)
