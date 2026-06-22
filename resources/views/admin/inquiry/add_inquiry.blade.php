@@ -45,6 +45,22 @@
                                 margin-bottom: 1rem !important;
                             }
 
+                            /* Inline field error messages */
+                            .field-error {
+                                display: none;
+                                color: #dc3545;
+                                font-size: 12px;
+                                margin-top: 4px;
+                                font-weight: 500;
+                            }
+                            .field-error:not(:empty) {
+                                display: block !important;
+                            }
+                            .input-invalid {
+                                border-color: #dc3545 !important;
+                                box-shadow: 0 0 0 0.2rem rgba(220,53,69,.15) !important;
+                            }
+
                             /* Autocomplete Styles */
                             .autocomplete-container {
                                 position: relative;
@@ -288,7 +304,7 @@
                                 <!-- Left Column -->
                                 <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label class="form-label">Select branch *</label>
+                                        <label class="form-label">Select branch <span class="text-danger">*</span></label>
                                         @if(isset($lead) && $lead->id)
                                             <input type="text" class="form-control" value="{{ $lead->branch ?? '' }}" readonly>
                                             <input type="hidden" name="branch" value="{{ $lead->branch_id ?? '' }}">
@@ -299,14 +315,16 @@
                                                     <option value="{{ $b->branch_id }}" {{ (old('branch') == $b->branch_id) ? 'selected' : '' }}>{{ $b->branch_name }}</option>
                                                 @endforeach
                                             </select>
+                                            <div class="field-error" id="branch-error"></div>
                                         @endif
                                     </div>
 
                                     <div class="row mb-3">
                                         <div class="col-md-4">
-                                            <label class="form-label">First Name *</label>
+                                            <label class="form-label">First Name <span class="text-danger">*</span></label>
                                             <input type="text" class="form-control" name="patient_f_name" id="patientFName"
                                                 value="{{ old('patient_f_name', $lead->patient_f_name ?? '') }}" required>
+                                            <div class="field-error" id="fname-error"></div>
                                         </div>
                                         <div class="col-md-4">
                                             <label class="form-label">Middle Name</label>
@@ -314,9 +332,10 @@
                                                 value="{{ old('patient_m_name', $lead->patient_m_name ?? '') }}">
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Last Name *</label>
+                                            <label class="form-label">Last Name <span class="text-danger">*</span></label>
                                             <input type="text" class="form-control" name="patient_l_name" id="patientLName"
                                                 value="{{ old('patient_l_name', $lead->patient_l_name ?? '') }}" required>
+                                            <div class="field-error" id="lname-error"></div>
                                         </div>
                                     </div>
 
@@ -325,11 +344,13 @@
                                             <label class="form-label">Phone Number</label>
                                             <input type="text" class="form-control" name="phone_no" id="phoneInput"
                                                 value="{{ old('phone_no', $lead->phone_no ?? '') }}">
+                                            <div class="field-error" id="phone-error"></div>
                                         </div>
                                         <div class="col-md-6">
                                             <label class="form-label">Age</label>
                                             <input type="number" class="form-control" name="age" id="ageInput"
                                                 value="{{ old('age', $lead->age ?? '') }}">
+                                            <div class="field-error" id="age-error"></div>
                                         </div>
                                     </div>
 
@@ -346,6 +367,7 @@
                                             <label class="form-label">Email ID</label>
                                             <input type="email" class="form-control" name="email" id="emailInput"
                                                 value="{{ old('email', $lead->email ?? '') }}">
+                                            <div class="field-error" id="email-error"></div>
                                         </div>
                                     </div>
 
@@ -373,19 +395,19 @@
                                 <div class="col-md-6">
                                     <div class="row mb-3">
                                         <div class="col-md-4">
-                                            <label class="form-label">Height (cm)</label>
+                                            <label class="form-label">Height (cm) <span class="text-danger">*</span></label>
                                             <input type="number" step="0.1" class="form-control" name="height"
                                                 id="heightInput" value="{{ old('height', $lead->height ?? '') }}"
-                                                onchange="calculateMetrics()">
+                                                oninput="calculateMetrics()">
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">Weight (kg)</label>
+                                            <label class="form-label">Weight (kg) <span class="text-danger">*</span></label>
                                             <input type="number" step="0.1" class="form-control" name="weight"
                                                 id="weightInput" value="{{ old('weight', $lead->weight ?? '') }}"
-                                                onchange="calculateMetrics()">
+                                                oninput="calculateMetrics()">
                                         </div>
                                         <div class="col-md-4">
-                                            <label class="form-label">BMI</label>
+                                            <label class="form-label">BMI <small class="text-muted">(auto)</small></label>
                                             <input type="text" class="form-control" id="bmiInput" name="bmi" readonly
                                                 style="background-color: #f8f9fa;"
                                                 value="{{ old('bmi', $lead->bmi ?? '') }}">
@@ -394,13 +416,13 @@
 
                                     <div class="row mb-3">
                                         <div class="col-md-6">
-                                            <label class="form-label">Visit Date *</label>
+                                            <label class="form-label">Visit Date <span class="text-danger">*</span></label>
                                             <input type="date" class="form-control" name="inquiry_date"
                                                 value="{{ old('inquiry_date', isset($lead) ? $lead->getRawOriginal('inquiry_date') : date('Y-m-d')) }}"
                                                 required>
                                         </div>
                                         <div class="col-md-6">
-                                            <label class="form-label">Time *</label>
+                                            <label class="form-label">Time <span class="text-danger">*</span></label>
                                             <input type="time" class="form-control" name="inquiry_time"
                                                 value="{{ old('inquiry_time', isset($lead) ? $lead->getRawOriginal('inquiry_time') : date('H:i')) }}"
                                                 required>
@@ -410,7 +432,7 @@
                                     <div class="row mb-3">
                                         <div class="col-md-6">
                                             <div class="mb-3">
-                                                <label class="form-label">Complaint</label>
+                                                <label class="form-label">Complaint <span class="text-danger">*</span></label>
                                                 <div class="multi-select-container">
                                                     <div class="selected-items" id="complain-selected">
                                                         <!-- Selected complaints will appear here -->
@@ -422,13 +444,14 @@
                                                     </div>
                                                     <input type="hidden" name="complain" id="complain-hidden"
                                                         value="{{ old('complain', $lead->complain ?? '') }}">
+                                                    <div class="field-error" id="complain-error"></div>
                                                 </div>
                                             </div>
                                         </div>
 
                                         <div class="col-md-6">
                                             <div class="mb-3">
-                                                <label class="form-label">Diagnosis</label>
+                                                <label class="form-label">Diagnosis <span class="text-danger">*</span></label>
                                                 <div class="multi-select-container">
                                                     <div class="selected-items" id="diagnosis-selected">
                                                         <!-- Selected diagnoses will appear here -->
@@ -440,6 +463,7 @@
                                                     </div>
                                                     <input type="hidden" name="diagnosis" id="diagnosis-hidden"
                                                         value="{{ old('diagnosis', $lead->diagnosis ?? '') }}">
+                                                    <div class="field-error" id="diagnosis-error"></div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1199,49 +1223,156 @@
 
             // Form validation and confirmation
             const inquiryForm = document.getElementById('inquiryForm');
+
+            // Helper: show inline error
+            function showFieldError(fieldId, errorId, message) {
+                const field = document.getElementById(fieldId);
+                const errorDiv = document.getElementById(errorId);
+                if (field) {
+                    field.classList.remove('is-invalid');
+                    field.classList.add('input-invalid');
+                }
+                if (errorDiv) {
+                    errorDiv.textContent = message;
+                    errorDiv.style.display = 'block';
+                }
+            }
+
+            // Helper: clear inline error
+            function clearFieldError(fieldId, errorId) {
+                const field = document.getElementById(fieldId);
+                const errorDiv = document.getElementById(errorId);
+                if (field) {
+                    field.classList.remove('input-invalid');
+                    field.classList.remove('is-invalid');
+                }
+                if (errorDiv) {
+                    errorDiv.textContent = '';
+                    errorDiv.style.display = 'none';
+                }
+            }
+
+            // Live phone validation
+            const phoneInput = document.getElementById('phoneInput');
+            if (phoneInput) {
+                phoneInput.addEventListener('input', function () {
+                    const phone = this.value.trim();
+                    if (phone && !/^[\d\s\-\+\(\)]{10,15}$/.test(phone.replace(/[\s\-\+\(\)]/g, ''))) {
+                        showFieldError('phoneInput', 'phone-error', 'Enter a valid phone number (10-15 digits).');
+                    } else {
+                        clearFieldError('phoneInput', 'phone-error');
+                    }
+                });
+                phoneInput.addEventListener('blur', function () {
+                    const phone = this.value.trim();
+                    if (phone && !/^[\d\s\-\+\(\)]{10,15}$/.test(phone.replace(/[\s\-\+\(\)]/g, ''))) {
+                        showFieldError('phoneInput', 'phone-error', 'Enter a valid phone number (10-15 digits).');
+                    } else {
+                        clearFieldError('phoneInput', 'phone-error');
+                    }
+                });
+            }
+
+            // Live email validation
+            const emailInput = document.getElementById('emailInput');
+            if (emailInput) {
+                emailInput.addEventListener('blur', function () {
+                    const email = this.value.trim();
+                    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                        showFieldError('emailInput', 'email-error', 'Please enter a valid email address.');
+                    } else {
+                        clearFieldError('emailInput', 'email-error');
+                    }
+                });
+                emailInput.addEventListener('input', function () {
+                    if (this.classList.contains('is-invalid') && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.value.trim())) {
+                        clearFieldError('emailInput', 'email-error');
+                    }
+                });
+            }
+
+            // Live age validation
+            const ageInput = document.getElementById('ageInput');
+            if (ageInput) {
+                ageInput.addEventListener('input', function () {
+                    const age = parseInt(this.value);
+                    if (this.value && (age < 0 || age > 150)) {
+                        showFieldError('ageInput', 'age-error', 'Please enter a valid age (0-150).');
+                    } else {
+                        clearFieldError('ageInput', 'age-error');
+                    }
+                });
+            }
+
             if (inquiryForm) {
                 inquiryForm.addEventListener('submit', function (e) {
-                    e.preventDefault(); // Always prevent default submission first
+                    e.preventDefault();
 
+                    let hasError = false;
+
+                    // Branch validation (only for new inquiry)
+                    const branchSelect = document.getElementById('branch');
+                    if (branchSelect && !branchSelect.value) {
+                        showFieldError('branch', 'branch-error', 'Please select a branch.');
+                        hasError = true;
+                    } else if (branchSelect) {
+                        clearFieldError('branch', 'branch-error');
+                    }
+
+                    // First Name
                     const patientFName = document.getElementById('patientFName');
-                    const patientLName = document.getElementById('patientLName');
-                    const statusCheckboxes = document.querySelectorAll('input[name="user_status[]"]:checked');
-                    const hasStatus = statusCheckboxes.length > 0;
-
-                    // Check if patient first name is filled
                     if (patientFName && !patientFName.value.trim()) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Required Field',
-                            text: 'Please enter patient first name'
-                        });
-                        patientFName.focus();
-                        return;
+                        showFieldError('patientFName', 'fname-error', 'First name is required.');
+                        hasError = true;
+                    } else if (patientFName) {
+                        clearFieldError('patientFName', 'fname-error');
                     }
 
-                    // Check if patient last name is filled
+                    // Last Name
+                    const patientLName = document.getElementById('patientLName');
                     if (patientLName && !patientLName.value.trim()) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Required Field',
-                            text: 'Please enter patient last name'
-                        });
-                        patientLName.focus();
-                        return;
+                        showFieldError('patientLName', 'lname-error', 'Last name is required.');
+                        hasError = true;
+                    } else if (patientLName) {
+                        clearFieldError('patientLName', 'lname-error');
                     }
 
-                    // Check if at least one status is selected
+                    // Phone validation (if filled)
+                    const phone = phoneInput ? phoneInput.value.trim() : '';
+                    if (phone && !/^[\d\s\-\+\(\)]{10,15}$/.test(phone.replace(/[\s\-\+\(\)]/g, ''))) {
+                        showFieldError('phoneInput', 'phone-error', 'Enter a valid phone number (10-15 digits).');
+                        hasError = true;
+                    }
+
+                    // Process Stage validation
                     const isOnline = document.getElementById('source_online')?.checked;
-                    if (!isOnline && !hasStatus) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Status Required',
-                            text: 'Please select at least one status for the patient'
-                        });
+                    const statusChecked = document.querySelectorAll('input[name="user_status[]"]:checked');
+                    if (!isOnline && statusChecked.length === 0) {
+                        const stageContainer = document.getElementById('processStageContainer');
+                        if (stageContainer) {
+                            let stageErr = document.getElementById('stage-error');
+                            if (!stageErr) {
+                                stageErr = document.createElement('div');
+                                stageErr.id = 'stage-error';
+                                stageErr.style.cssText = 'color:#dc3545;font-size:12px;margin-top:6px;';
+                                stageContainer.appendChild(stageErr);
+                            }
+                            stageErr.textContent = 'Please select at least one process stage.';
+                        }
+                        hasError = true;
+                    } else {
+                        const stageErr = document.getElementById('stage-error');
+                        if (stageErr) stageErr.textContent = '';
+                    }
+
+                    if (hasError) {
+                        // Scroll to first error
+                        const firstInvalid = inquiryForm.querySelector('.input-invalid, .field-error:not(:empty)');
+                        if (firstInvalid) firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         return;
                     }
 
-                    // If validation passes, show SweetAlert confirmation
+                    // All good — confirm and submit
                     Swal.fire({
                         title: 'Are you sure?',
                         text: "Do you want to save this inquiry?",
@@ -1255,51 +1386,20 @@
                         }
                     });
                 });
-            }
 
-            // Additional validations
-            const phoneInput = document.getElementById('phoneInput');
-            if (phoneInput) {
-                phoneInput.addEventListener('blur', function () {
-                    const phone = this.value.trim();
-                    if (phone && !/^[\d\s\-\+\(\)]{10,15}$/.test(phone.replace(/\s/g, ''))) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Invalid Phone',
-                            text: 'Please enter a valid phone number (10-15 digits).'
-                        });
-                        this.focus();
-                    }
+                // Clear errors on input for required fields
+                ['patientFName', 'patientLName'].forEach(function(id) {
+                    const el = document.getElementById(id);
+                    if (el) el.addEventListener('input', function() {
+                        if (this.value.trim()) {
+                            const errMap = { patientFName: 'fname-error', patientLName: 'lname-error' };
+                            clearFieldError(id, errMap[id]);
+                        }
+                    });
                 });
-            }
-
-            const emailInput = document.getElementById('emailInput');
-            if (emailInput) {
-                emailInput.addEventListener('blur', function () {
-                    const email = this.value.trim();
-                    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Invalid Email',
-                            text: 'Please enter a valid email address.'
-                        });
-                        this.focus();
-                    }
-                });
-            }
-
-            const ageInput = document.getElementById('ageInput');
-            if (ageInput) {
-                ageInput.addEventListener('blur', function () {
-                    const age = parseInt(this.value);
-                    if (this.value && (age < 0 || age > 150)) {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Invalid Age',
-                            text: 'Please enter a valid age (0-150).'
-                        });
-                        this.focus();
-                    }
+                const branchEl = document.getElementById('branch');
+                if (branchEl) branchEl.addEventListener('change', function() {
+                    if (this.value) clearFieldError('branch', 'branch-error');
                 });
             }
 
@@ -1330,21 +1430,32 @@
         function loadSuggestions() {
             const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-            fetch('/get-suggestions', {
+            fetch('{{ route("get.suggestions") }}', {
                 method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': token,
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        // Don't crash — just init with empty arrays
+                        initAutocomplete();
+                        return null;
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    if (!data) return;
                     if (data.complaints && data.complaints.length > 0) suggestionsData.complaints = data.complaints;
                     if (data.diagnoses && data.diagnoses.length > 0) suggestionsData.diagnoses = data.diagnoses;
                     initAutocomplete();
                 })
-                .catch(error => console.error('Error loading suggestions:', error));
+                .catch(error => {
+                    console.warn('Could not load suggestions, autocomplete will work without preloaded data.');
+                    initAutocomplete();
+                });
         }
 
         function initAutocomplete() {
@@ -1514,7 +1625,7 @@
         function saveNewMedicalCondition(name, type, inputElement) {
             const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
 
-            fetch('/save-medical-condition', {
+            fetch('{{ route("save.medical.condition") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

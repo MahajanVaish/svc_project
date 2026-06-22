@@ -2968,7 +2968,9 @@
                                                                                     }
                                                                                 }
 
-                                                                                if (!empty($items)) {
+                                                                                // Include the row if it has a time set
+                                                                                // (even if recipes/menu are empty — show "-" so user sees the schedule)
+                                                                                if (!empty($menu['time']) || !empty($items) || !empty($menu['notes']) || !empty($menu['quantity'])) {
                                                                                     $menu['items_list'] = $items;
                                                                                     $filteredMenus[] = $menu;
                                                                                 }
@@ -4840,8 +4842,56 @@
             $('#editDietPlanForm').on('submit', function (e) {
                 e.preventDefault();
 
-                const formData = $(this).serialize();
-                console.log('Diet plan form data:', formData);
+                // Build proper JSON payload instead of form serialize
+                // so that recipes array is correctly structured
+                const menuRows = [];
+                $('#edit_time_search_container .meal-row').each(function(index) {
+                    const time = $(this).find('.meal-time').val() || '';
+                    const recipesText = $(this).find('.meal-recipes').val() || '';
+                    const quantity = $(this).find('.meal-quantity').val() || '';
+                    const notes = $(this).find('.meal-notes').val() || '';
+
+                    if (time || recipesText || quantity || notes) {
+                        // Convert comma-separated recipes text to array
+                        let recipesArray = [];
+                        if (recipesText.trim()) {
+                            try {
+                                // Try JSON parse first (in case it's already JSON)
+                                const parsed = JSON.parse(recipesText);
+                                if (Array.isArray(parsed)) {
+                                    recipesArray = parsed;
+                                } else {
+                                    recipesArray = [{ name: recipesText.trim(), qty: quantity, custom: true }];
+                                }
+                            } catch(e) {
+                                // Plain text - split by comma
+                                const parts = recipesText.split(',').map(s => s.trim()).filter(s => s);
+                                recipesArray = parts.map(name => ({ name: name, qty: '', custom: true }));
+                            }
+                        }
+
+                        menuRows.push({
+                            time: time,
+                            search_menu: recipesArray.map(r => r.name || r).join(', '),
+                            selected_recipes: recipesText,
+                            recipes: recipesArray,
+                            quantity: quantity,
+                            notes: notes
+                        });
+                    }
+                });
+
+                const payload = {
+                    diet_plan_id: $('#edit_diet_plan_id').val(),
+                    _token: $('meta[name="csrf-token"]').attr('content'),
+                    date: $('#edit_diet_date').val(),
+                    diet_name: $('#edit_diet_name').val(),
+                    general_notes: $('#edit_general_notes').val(),
+                    next_follow_up_date: $('#edit_next_follow_up_date').val(),
+                    time_search_menus: menuRows
+                };
+
+                console.log('Diet plan update payload:', payload);
 
                 // Show loading
                 $('#updateDietPlanBtn').html('<span class="loading-spinner"></span>Updating...');
@@ -4850,7 +4900,8 @@
                 $.ajax({
                     url: '/diet-plan/update',
                     method: 'POST',
-                    data: formData,
+                    contentType: 'application/json',
+                    data: JSON.stringify(payload),
                     headers: {
                         'X-CSRF-TOKEN': csrfToken
                     },

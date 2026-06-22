@@ -83,17 +83,34 @@
                                         </td>
                                         <td>
                                             <div class="fw-semibold text-dark mb-1">
-                                                @php
+                        @php
                                                     $recipeList = [];
                                                     $hasStructuredRecipes = !empty($menu['recipes']) && is_array($menu['recipes']);
 
                                                     if ($hasStructuredRecipes) {
                                                         $recipeList = $menu['recipes'];
                                                     } else {
+                                                        // Fallback: try selected_recipes JSON, then search_menu plain text
                                                         $recipesStr = $menu['selected_recipes'] ?? $menu['search_menu'] ?? '';
-                                                        $rawList = array_filter(array_map('trim', explode(',', $recipesStr)));
-                                                        foreach ($rawList as $r) {
-                                                            $recipeList[] = ['name' => $r, 'qty' => 1];
+                                                        if (!empty($recipesStr)) {
+                                                            // Try JSON decode first
+                                                            $jsonDecoded = @json_decode($recipesStr, true);
+                                                            if (is_array($jsonDecoded) && !empty($jsonDecoded)) {
+                                                                $recipeList = $jsonDecoded;
+                                                            } else {
+                                                                // Plain comma-separated text
+                                                                $rawList = array_filter(array_map('trim', explode(',', $recipesStr)));
+                                                                foreach ($rawList as $r) {
+                                                                    $recipeList[] = ['name' => $r, 'qty' => 1];
+                                                                }
+                                                            }
+                                                        }
+                                                        // Last fallback: use search_menu even if selected_recipes was set
+                                                        if (empty($recipeList) && !empty($menu['search_menu'])) {
+                                                            $rawList = array_filter(array_map('trim', explode(',', $menu['search_menu'])));
+                                                            foreach ($rawList as $r) {
+                                                                $recipeList[] = ['name' => $r, 'qty' => 1];
+                                                            }
                                                         }
                                                     }
                                                 @endphp

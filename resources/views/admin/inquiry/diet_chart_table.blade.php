@@ -172,6 +172,22 @@
                 // Clean and deduplicate programs
                 $programs = array_unique(array_filter($programs));
 
+                // Fallback: if no program found, show status_history stages as badges
+                if (empty($programs)) {
+                    $statusHistory = $inquiry->status_history ?? [];
+                    if (is_string($statusHistory)) {
+                        $statusHistory = json_decode($statusHistory, true) ?: [$statusHistory];
+                    }
+                    foreach ((array) $statusHistory as $stage) {
+                        if (!empty($stage)) $programs[] = $stage;
+                    }
+                    // Last resort: use user_status column
+                    if (empty($programs) && !empty($inquiry->user_status)) {
+                        $programs[] = $inquiry->user_status;
+                    }
+                    $programs = array_unique(array_filter($programs));
+                }
+
                 $colorClasses = ['badge-pg-1', 'badge-pg-2', 'badge-pg-3', 'badge-pg-4', 'badge-pg-5', 'badge-pg-6', 'badge-pg-7', 'badge-pg-8'];
             @endphp
 

@@ -826,11 +826,12 @@
                 }
 
                 const timeSearchMenus = [];
+                let hasEmptyMenuWarning = false;
                 $('.search-menu-row').each(function (index) {
                     const time = $(this).find('.time-search').val();
                     const hiddenInput = $(this).find('.selected-recipes-input');
                     const selectedRecipesRaw = hiddenInput.val() || '';
-                    const searchMenuInput = $(this).find('.search-menu').val();
+                    const searchMenuInput = $(this).find('.search-menu').val().trim();
                     const quantity = $(this).find('.quantity-input').val();
                     const notes = $(this).find('textarea').val();
 
@@ -841,19 +842,48 @@
                             const parsed = JSON.parse(selectedRecipesRaw);
                             if (Array.isArray(parsed)) recipesArray = parsed;
                         } catch(e) {
-                            // Not JSON — treat as plain text
+                            // Not JSON
                         }
+
+                        // If search_menu has text typed but not added as recipe, add it now
+                        if (searchMenuInput && recipesArray.length === 0) {
+                            // Could be comma-separated
+                            const parts = searchMenuInput.split(',').map(s => s.trim()).filter(s => s);
+                            parts.forEach(name => {
+                                recipesArray.push({ name: name, qty: quantity || '', custom: true });
+                            });
+                        }
+
+                        // Warn if time is set but still no menu data at all
+                        if (time && recipesArray.length === 0 && !searchMenuInput && !notes && !quantity) {
+                            hasEmptyMenuWarning = true;
+                        }
+
+                        // Build final search_menu string from recipes
+                        const finalSearchMenu = recipesArray.length > 0
+                            ? recipesArray.map(r => r.name || r).join(', ')
+                            : searchMenuInput;
 
                         timeSearchMenus.push({
                             time: time || '',
-                            search_menu: searchMenuInput || '',
-                            selected_recipes: selectedRecipesRaw || '',
+                            search_menu: finalSearchMenu || '',
+                            selected_recipes: recipesArray.length > 0 ? JSON.stringify(recipesArray) : (selectedRecipesRaw || ''),
                             recipes: recipesArray,
                             quantity: quantity || '',
                             notes: notes || ''
                         });
                     }
                 });
+
+                if (hasEmptyMenuWarning) {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Menu Items Missing',
+                        text: 'Some time slots have no menu items selected. Please use the search box and click to select recipes from the dropdown.',
+                        confirmButtonText: 'OK, I will fix it'
+                    });
+                    return;
+                }
 
                 const formData = {
                     _token: '{{ csrf_token() }}',
