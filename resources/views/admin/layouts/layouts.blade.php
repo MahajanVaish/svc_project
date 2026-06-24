@@ -229,16 +229,18 @@
         }
 
         .navbar {
-            background-color: var(--bg-navbar);
-            padding: 0.75rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: var(--shadow-sm);
-            border-bottom: 1px solid var(--border-subtle);
-            position: sticky;
-            top: 0;
-            z-index: 50;
+            background-color: var(--bg-navbar) !important;
+            padding: 0.75rem 2rem !important;
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            box-shadow: var(--shadow-sm) !important;
+            border-bottom: 1px solid var(--border-subtle) !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 1050 !important;
+            min-height: 64px !important;
+            width: 100% !important;
         }
 
         .navbar-brand {
@@ -246,10 +248,18 @@
             color: #197040 !important;
             font-size: 1.5rem !important;
             font-weight: 800 !important;
-            letter-spacing: -0.025em;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            letter-spacing: -0.025em !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.5rem !important;
+            text-decoration: none !important;
+        }
+
+        .navbar-brand img {
+            height: 48px !important;
+            width: auto !important;
+            display: block !important;
+            object-fit: contain !important;
         }
 
         .nav-links {
@@ -1637,15 +1647,13 @@
                     @endphp
 
                     @if($isSuperadmin)
-                        <img src="{{ asset('images/image.png') }}" alt="Logo" class="h-12 w-auto">
-                    @elseif(str_contains($branchNameUpper, 'SVC'))
-                        SVC
-                    @elseif(str_contains($branchNameUpper, 'LHR'))
-                        LHR
-                    @elseif(str_contains($branchNameUpper, 'HYDRA'))
-                        Hydra
+                        <img src="{{ asset('images/image.png') }}" alt="Figure n Fit" style="height:48px;width:auto;display:block;object-fit:contain;">
+                    @elseif($userBranchName)
+                        <i class="fas fa-hospital" style="color:#197040;font-size:1.2rem;"></i>
+                        {{ $userBranchName }}
                     @else
-                        <img src="{{ asset('images/image.png') }}" alt="Logo" class="h-12 w-auto">
+                        <i class="fas fa-hospital" style="color:#197040;font-size:1.2rem;"></i>
+                        Figure 'n' Fit
                     @endif
                 @else
                     Shree Vallabh Clinic
