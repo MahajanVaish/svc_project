@@ -2237,6 +2237,32 @@
 
                                                     <div class="patient_opd_details p-4" id="dietHistoryContent" style="display: none;">
                                                         <div class="row">
+                                                            <div class="col-md-12 mb-3">
+                                                                <h6 class="fw-bold mb-2 text-primary border-bottom pb-2">Physical Measurements</h6>
+                                                                <div class="row">
+                                                                    <div class="col-md col-6 py-2">
+                                                                        <div class="label-text">HEIGHT (CM)</div>
+                                                                        <input class="input-field" type="text" value="{{ formatValue($optMeta['pod_data'] ?? '') }}" disabled>
+                                                                    </div>
+                                                                    <div class="col-md col-6 py-2">
+                                                                        <div class="label-text">WEIGHT (KG)</div>
+                                                                        <input class="input-field" type="text" value="{{ formatValue($optMeta['pod_bdy_weight'] ?? '') }}" disabled>
+                                                                    </div>
+                                                                    <div class="col-md col-6 py-2">
+                                                                        <div class="label-text">BMI</div>
+                                                                        <input class="input-field" type="text" value="{{ formatValue($optMeta['pod_bmr'] ?? '') }}" disabled>
+                                                                    </div>
+                                                                    <div class="col-md col-6 py-2">
+                                                                        <div class="label-text">BMR (KCAL)</div>
+                                                                        <input class="input-field" type="text" value="{{ formatValue($optMeta['pod_bmr_value'] ?? '') }}" disabled>
+                                                                    </div>
+                                                                    <div class="col-md col-12 py-2">
+                                                                        <div class="label-text">CALORIES REQUIRED</div>
+                                                                        <input class="input-field" type="text" value="{{ formatValue($optMeta['pod_calories'] ?? '') }}" disabled>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+
                                                             <div class="col-md-3 py-3">
                                                                 <div class="label-text">WAKING TIME</div>
                                                                 <input class="input-field" type="text"
@@ -3474,7 +3500,7 @@
                                                             <div class="payment-field">
                                                                 <label for="edit_progress_report_weight">Weight (kg)</label>
                                                                 <input type="number" class="payment-input"
-                                                                    id="edit_progress_report_weight" name="weight" step="0.1">
+                                                                    id="edit_progress_report_weight" name="weight" step="any">
                                                             </div>
                                                         </div>
                                                     </div>
@@ -3655,6 +3681,16 @@
                                 <div class="payment-field">
                                     <label for="edit_payment_date">Payment Date</label>
                                     <input type="date" class="payment-input" id="edit_payment_date" name="payment_date">
+                                </div>
+
+                                <div class="payment-field">
+                                    <label for="edit_payment_method">Payment Method</label>
+                                    <select class="payment-input" id="edit_payment_method" name="payment_method">
+                                        <option value="">Select Method</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="G-Pay">G-Pay</option>
+                                        <option value="Cheque">Cheque</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -3888,13 +3924,23 @@
                                                 'name' => 'Weight',
                                                 'unit' => 'kg',
                                                 'icon' => 'fa-weight-scale',
+                                                'id' => 'add_weight',
                                                 'field' => 'weight',
                                             ],
                                             [
                                                 'name' => 'BMI',
                                                 'unit' => 'kg/m²',
                                                 'icon' => 'fa-chart-line',
+                                                'id' => 'add_bmi',
                                                 'field' => 'bmi',
+                                            ],
+                                            [
+                                                'name' => 'BMR',
+                                                'unit' => 'kcal',
+                                                'icon' => 'fa-heartbeat',
+                                                'id' => 'add_bmr',
+                                                'field' => 'bmr',
+                                                'readonly' => true,
                                             ],
                                         ];
                                     @endphp
@@ -3906,8 +3952,8 @@
                                                 {{ $item['name'] }}
                                             </div>
                                             <div class="measurement-input-group">
-                                                <input type="number" class="measurement-input" placeholder="0.0" step="{{ $item['step'] ?? '0.1' }}"
-                                                    name="measurements[{{ $item['field'] }}]">
+                                                <input type="number" class="measurement-input" placeholder="0.0" step="{{ $item['step'] ?? 'any' }}"
+                                                    id="{{ $item['id'] ?? '' }}" name="measurements[{{ $item['field'] }}]" {{ isset($item['readonly']) ? 'readonly' : '' }}>
                                                 <span class="measurement-unit">{{ $item['unit'] }}</span>
                                             </div>
                                         </div>
@@ -3925,7 +3971,7 @@
                                     @php
                                         $addBcaMeasurements = [
                                             [
-                                                'name' => 'VBF',
+                                                'name' => 'WBF',
                                                 'unit' => '%',
                                                 'icon' => 'fa-percent',
                                                 'field' => 'bca_vbf',
@@ -3970,7 +4016,7 @@
                                                 {{ $item['name'] }}
                                             </div>
                                             <div class="measurement-input-group">
-                                                <input type="number" class="measurement-input" placeholder="0.0" step="0.1"
+                                                <input type="number" class="measurement-input" placeholder="0.0" step="any"
                                                     name="measurements[{{ $item['field'] }}]">
                                                 <span class="measurement-unit">{{ $item['unit'] }}</span>
                                             </div>
@@ -4022,7 +4068,7 @@
                                                 {{ $item['name'] }}
                                             </div>
                                             <div class="measurement-input-group">
-                                                <input type="number" class="measurement-input" placeholder="0.0" step="0.1"
+                                                <input type="number" class="measurement-input" placeholder="0.0" step="any"
                                                     name="measurements[{{ $item['field'] }}]">
                                                 <span class="measurement-unit">{{ $item['unit'] }}</span>
                                             </div>
@@ -4145,6 +4191,14 @@
                                                 'id' => 'edit_bmi',
                                                 'field' => 'bmi',
                                             ],
+                                            [
+                                                'name' => 'BMR',
+                                                'unit' => 'kcal',
+                                                'icon' => 'fa-heartbeat',
+                                                'id' => 'edit_bmr',
+                                                'field' => 'bmr',
+                                                'readonly' => true,
+                                            ],
                                         ];
                                     @endphp
 
@@ -4155,8 +4209,8 @@
                                                 {{ $item['name'] }}
                                             </div>
                                             <div class="measurement-input-group">
-                                                <input type="number" class="measurement-input" placeholder="0.0" step="{{ $item['step'] ?? '0.1' }}"
-                                                    id="{{ $item['id'] }}" name="{{ $item['field'] }}">
+                                                <input type="number" class="measurement-input" placeholder="0.0" step="{{ $item['step'] ?? 'any' }}"
+                                                    id="{{ $item['id'] }}" name="{{ $item['field'] }}" {{ isset($item['readonly']) ? 'readonly' : '' }}>
                                                 <span class="measurement-unit">{{ $item['unit'] }}</span>
                                             </div>
                                         </div>
@@ -4174,7 +4228,7 @@
                                     @php
                                         $bcaMeasurements = [
                                             [
-                                                'name' => 'VBF',
+                                                'name' => 'WBF',
                                                 'unit' => '%',
                                                 'icon' => 'fa-percent',
                                                 'id' => 'edit_bca_vbf',
@@ -4225,7 +4279,7 @@
                                                 {{ $item['name'] }}
                                             </div>
                                             <div class="measurement-input-group">
-                                                <input type="number" class="measurement-input" placeholder="0.0" step="0.1"
+                                                <input type="number" class="measurement-input" placeholder="0.0" step="any"
                                                     id="{{ $item['id'] }}" name="{{ $item['field'] }}">
                                                 <span class="measurement-unit">{{ $item['unit'] }}</span>
                                             </div>
@@ -4281,7 +4335,7 @@
                                                 {{ $item['name'] }}
                                             </div>
                                             <div class="measurement-input-group">
-                                                <input type="number" class="measurement-input" placeholder="0.0" step="0.1"
+                                                <input type="number" class="measurement-input" placeholder="0.0" step="any"
                                                     id="{{ $item['id'] }}" name="{{ $item['field'] }}">
                                                 <span class="measurement-unit">{{ $item['unit'] }}</span>
                                             </div>
@@ -5352,6 +5406,9 @@
                 $('#edit_muscle_arms').val(data.muscle_arms || '');
                 $('#edit_muscle_trunk').val(data.muscle_trunk || '');
                 $('#edit_muscle_legs').val(data.muscle_legs || '');
+
+                // Calculate BMR and BMI dynamically when populating the edit form
+                calculateAssessmentBMRAndBMI(true);
             }
 
             // Form submit handler for assessment
@@ -5760,6 +5817,47 @@
                 $('#editAssessmentForm')[0].reset();
                 $('#updateAssessmentBtn').html('<i class="fas fa-save me-2"></i>Update Assessment');
                 $('#updateAssessmentBtn').prop('disabled', false);
+            });
+
+            // Calculate BMR and BMI dynamically for assessment
+            function calculateAssessmentBMRAndBMI(isEdit) {
+                const prefix = isEdit ? 'edit_' : 'add_';
+                const weightEl = document.getElementById(prefix + 'weight');
+                const bmiEl = document.getElementById(prefix + 'bmi');
+                const bmrEl = document.getElementById(prefix + 'bmr');
+
+                if (!weightEl) return;
+
+                const weight = parseFloat(weightEl.value);
+                const height = parseFloat("{{ $patient->height ?? 0 }}");
+                const age = parseInt("{{ $patient->age ?? 30 }}") || 30;
+                const gender = "{{ $patient->gender ?? 'male' }}";
+
+                if (weight && height && height > 0) {
+                    const heightMeter = height / 100;
+                    const bmi = (weight / (heightMeter * heightMeter)).toFixed(2);
+                    if (bmiEl) bmiEl.value = bmi;
+
+                    // Mifflin-St Jeor Equation
+                    let bmr = 0;
+                    if (gender.toLowerCase() === 'female') {
+                        bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
+                    } else {
+                        bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
+                    }
+                    if (bmrEl) bmrEl.value = Math.round(bmr);
+                } else {
+                    if (bmiEl) bmiEl.value = '';
+                    if (bmrEl) bmrEl.value = '';
+                }
+            }
+
+            // Bind events for weight input changes in assessment modals
+            $(document).on('input', '#add_weight', function () {
+                calculateAssessmentBMRAndBMI(false);
+            });
+            $(document).on('input', '#edit_weight', function () {
+                calculateAssessmentBMRAndBMI(true);
             });
 
             $('#deleteAssessmentModal').on('hidden.bs.modal', function () {

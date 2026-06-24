@@ -235,17 +235,17 @@
                 <div class="measurement-grid mb-4">
                     <div class="input-group-premium">
                         <label class="form-label-custom">Waist Upper</label>
-                        <input type="number" step="0.1" name="waist_upper" id="measure_waist_upper" class="premium-input" placeholder="0.0">
+                        <input type="number" step="any" name="waist_upper" id="measure_waist_upper" class="premium-input" placeholder="0.0">
                         <span class="input-unit">cm</span>
                     </div>
                     <div class="input-group-premium">
                         <label class="form-label-custom">Waist Middle</label>
-                        <input type="number" step="0.1" name="waist_middle" id="measure_waist_middle" class="premium-input" placeholder="0.0">
+                        <input type="number" step="any" name="waist_middle" id="measure_waist_middle" class="premium-input" placeholder="0.0">
                         <span class="input-unit">cm</span>
                     </div>
                     <div class="input-group-premium">
                         <label class="form-label-custom">Waist Lower</label>
-                        <input type="number" step="0.1" name="waist_lower" id="measure_waist_lower" class="premium-input" placeholder="0.0">
+                        <input type="number" step="any" name="waist_lower" id="measure_waist_lower" class="premium-input" placeholder="0.0">
                         <span class="input-unit">cm</span>
                     </div>
                 </div>
@@ -253,17 +253,17 @@
                 <div class="measurement-grid mb-4">
                     <div class="input-group-premium">
                         <label class="form-label-custom">Hips</label>
-                        <input type="number" step="0.1" name="hips" id="measure_hips" class="premium-input" placeholder="0.0">
+                        <input type="number" step="any" name="hips" id="measure_hips" class="premium-input" placeholder="0.0">
                         <span class="input-unit">cm</span>
                     </div>
                     <div class="input-group-premium">
                         <label class="form-label-custom">Thighs</label>
-                        <input type="number" step="0.1" name="thighs" id="measure_thighs" class="premium-input" placeholder="0.0">
+                        <input type="number" step="any" name="thighs" id="measure_thighs" class="premium-input" placeholder="0.0">
                         <span class="input-unit">cm</span>
                     </div>
                     <div class="input-group-premium">
                         <label class="form-label-custom">Arms</label>
-                        <input type="number" step="0.1" name="arms" id="measure_arms" class="premium-input" placeholder="0.0">
+                        <input type="number" step="any" name="arms" id="measure_arms" class="premium-input" placeholder="0.0">
                         <span class="input-unit">cm</span>
                     </div>
                 </div>
@@ -279,7 +279,7 @@
                     </div>
                     <div class="input-group-premium">
                         <label class="form-label-custom">Weight</label>
-                        <input type="number" step="0.1" name="weight" id="measure_weight" class="premium-input" placeholder="0.0">
+                        <input type="number" step="any" name="weight" id="measure_weight" class="premium-input" placeholder="0.0">
                         <span class="input-unit">kg</span>
                     </div>
                 </div>
@@ -287,7 +287,7 @@
                 <div class="row mb-4">
                     <div class="col-md-4">
                         <label class="form-label-custom">BMI (kg/m²)</label>
-                        <input type="number" step="0.1" name="bmi" id="measure_bmi" class="premium-input" placeholder="0.0" readonly>
+                        <input type="number" step="any" name="bmi" id="measure_bmi" class="premium-input" placeholder="0.0" readonly>
                     </div>
                 </div>
 
@@ -300,19 +300,19 @@
                             <div class="row g-3">
                                 <div class="col-6">
                                     <label class="small text-muted mb-1">WBF</label>
-                                    <input type="number" step="0.1" name="bca_vbf" id="bca_vbf" class="premium-input" placeholder="0.0">
+                                    <input type="number" step="any" name="bca_vbf" id="bca_vbf" class="premium-input" placeholder="0.0">
                                 </div>
                                 <div class="col-6">
                                     <label class="small text-muted mb-1">Arms</label>
-                                    <input type="number" step="0.1" name="bca_arms" id="bca_arms" class="premium-input" placeholder="0.0">
+                                    <input type="number" step="any" name="bca_arms" id="bca_arms" class="premium-input" placeholder="0.0">
                                 </div>
                                 <div class="col-6">
                                     <label class="small text-muted mb-1">Trunk</label>
-                                    <input type="number" step="0.1" name="bca_trunk" id="bca_trunk" class="premium-input" placeholder="0.0">
+                                    <input type="number" step="any" name="bca_trunk" id="bca_trunk" class="premium-input" placeholder="0.0">
                                 </div>
                                 <div class="col-6">
                                     <label class="small text-muted mb-1">Legs</label>
-                                    <input type="number" step="0.1" name="bca_legs" id="bca_legs" class="premium-input" placeholder="0.0">
+                                    <input type="number" step="any" name="bca_legs" id="bca_legs" class="premium-input" placeholder="0.0">
                                 </div>
                             </div>
                         </div>
@@ -323,20 +323,20 @@
                             <label class="form-label-custom mb-3" style="color: var(--text-dark);">Skeletal Muscle Mass (kg)</label>
                             <div class="row g-3">
                                 <div class="col-6">
-                                    <label class="small text-muted mb-1">WBF</label>
-                                    <input type="number" step="0.1" name="muscle_vbf" id="muscle_vbf" class="premium-input" placeholder="0.0">
+                                    <label class="small text-muted mb-1">VBF</label>
+                                    <input type="number" step="any" name="muscle_vbf" id="muscle_vbf" class="premium-input" placeholder="0.0">
                                 </div>
                                 <div class="col-6">
                                     <label class="small text-muted mb-1">Arms</label>
-                                    <input type="number" step="0.1" name="muscle_arms" id="muscle_arms" class="premium-input" placeholder="0.0">
+                                    <input type="number" step="any" name="muscle_arms" id="muscle_arms" class="premium-input" placeholder="0.0">
                                 </div>
                                 <div class="col-6">
                                     <label class="small text-muted mb-1">Trunk</label>
-                                    <input type="number" step="0.1" name="muscle_trunk" id="muscle_trunk" class="premium-input" placeholder="0.0">
+                                    <input type="number" step="any" name="muscle_trunk" id="muscle_trunk" class="premium-input" placeholder="0.0">
                                 </div>
                                 <div class="col-6">
                                     <label class="small text-muted mb-1">Legs</label>
-                                    <input type="number" step="0.1" name="muscle_legs" id="muscle_legs" class="premium-input" placeholder="0.0">
+                                    <input type="number" step="any" name="muscle_legs" id="muscle_legs" class="premium-input" placeholder="0.0">
                                 </div>
                             </div>
                         </div>
@@ -349,11 +349,11 @@
                         <div class="d-flex gap-3 mt-2">
                              <div class="input-group-premium flex-grow-1">
                                 <label class="small text-muted mb-1">S.F. (%)</label>
-                                <input type="number" step="0.1" name="bca_sf" id="bca_sf" class="premium-input" placeholder="0.0">
+                                <input type="number" step="any" name="bca_sf" id="bca_sf" class="premium-input" placeholder="0.0">
                             </div>
                             <div class="input-group-premium flex-grow-1">
                                 <label class="small text-muted mb-1">V.F. (%)</label>
-                                <input type="number" step="0.1" name="bca_vf" id="bca_vf" class="premium-input" placeholder="0.0">
+                                <input type="number" step="any" name="bca_vf" id="bca_vf" class="premium-input" placeholder="0.0">
                             </div>
                         </div>
                     </div>

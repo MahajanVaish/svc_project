@@ -14,7 +14,7 @@
                             {{ substr(optional($patient)->patient_name ?? 'P', 0, 1) }}
                         </div>
                         <div>
-                            <h1 class="mb-1 fw-bold h3">{{ optional($patient)->patient_name ?? 'N/A' }}</h1>
+                            <h1 class="mb-1 fw-bold h3">{{ optional($patient)->patient_f_name ?? 'N/A' }}</h1>
                             <div class="d-flex gap-2 align-items-center">
                                 <span
                                     class="badge bg-white bg-opacity-25 text-white border border-white border-opacity-25 px-3 py-2 rounded-pill small">

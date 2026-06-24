@@ -1396,10 +1396,25 @@
                                                                 $meta['habit'] ?? 'N/A' }}</li>
                                                                                                                             </ul>
                                                                                                                         </div>
-                                                                                                                        <!-- Weight Row -->
-
-
-                                                                                                                        <!-- Investigation Row -->
+                                                                                                                        <div class="col-12 mt-2 border-top pt-2">
+                                                                                                                            <div class="row">
+                                                                                                                                <div class="col-md-2 col-6">
+                                                                                                                                    <span class="text-muted">Height:</span> <strong>{{ $meta['pod_data'] ?? '---' }} cm</strong>
+                                                                                                                                </div>
+                                                                                                                                <div class="col-md-2 col-6">
+                                                                                                                                    <span class="text-muted">Weight:</span> <strong>{{ $meta['pod_bdy_weight'] ?? '---' }} kg</strong>
+                                                                                                                                </div>
+                                                                                                                                <div class="col-md-2 col-6">
+                                                                                                                                    <span class="text-muted">BMI:</span> <strong>{{ $meta['pod_bmr'] ?? '---' }}</strong>
+                                                                                                                                </div>
+                                                                                                                                <div class="col-md-3 col-6">
+                                                                                                                                    <span class="text-muted">BMR:</span> <strong>{{ $meta['pod_bmr_value'] ?? '---' }} kcal</strong>
+                                                                                                                                </div>
+                                                                                                                                <div class="col-md-3 col-12">
+                                                                                                                                    <span class="text-muted">Calories Req:</span> <strong>{{ $meta['pod_calories'] ?? '---' }} kcal</strong>
+                                                                                                                                </div>
+                                                                                                                            </div>
+                                                                                                                        </div>
 
                                                                                                                     </div>
                                                                                                                 </div>
@@ -1987,12 +2002,7 @@
                 });
             }
             
-            const physicalActivityInput = document.getElementById('physicalActivityInput');
-            if (physicalActivityInput) {
-                physicalActivityInput.addEventListener('change', function () {
-                    calculateBMRAndTDEE();
-                });
-            }
+            // physicalActivityInput listener is handled inside calculateBMRAndTDEE block below
 
             // ─── AUTO-CALCULATE BMR AND TDEE (CALORIES REQ) ─────────────────────
             function calculateBMRAndTDEE() {
@@ -2002,27 +2012,103 @@
                 const calEl = document.getElementById('caloriesInput');
                 const ageEl = document.getElementById('patientAge');
                 const genderEl = document.getElementById('patientGender');
-                const activityEl = document.getElementById('physicalActivityInput');
+                // Use the first physicalActivityInput (form field, not the secondary one)
+                const activityEls = document.querySelectorAll('#physicalActivityInput');
+                const activityEl = activityEls[0] || null;
 
-                if (!hEl || !wEl || !bmrEl || !calEl || !ageEl || !genderEl) return;
+                if (!hEl || !wEl || !bmrEl || !calEl) return;
 
                 const height = parseFloat(hEl.value);
                 const weight = parseFloat(wEl.value);
-                const age = parseInt(ageEl.value) || 0;
-                const gender = genderEl.value;
+                const age = parseInt(ageEl ? ageEl.value : 0) || 30; // default age 30 if not set
+                const gender = genderEl ? genderEl.value : 'male';
 
-                if (height && weight && height > 0 && age > 0) {
+                if (height && weight && height > 0) {
                     let bmr = 0;
+                    // Mifflin-St Jeor Equation
                     if (gender.toLowerCase() === 'female') {
                         bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
                     } else {
-                        // Default to Male formula
                         bmr = (10 * weight) + (6.25 * height) - (5 * age) + 5;
                     }
-                    
-                    bmrEl.value = Math.round(bmr);
+                    bmr = Math.round(bmr);
+                    bmrEl.value = bmr;
 
-                    if (activityEl && activityEl.value) {
+                    // Activity multipliers
+                    const activityMultipliers = {
+                        "Sedentary (Very Low Activity)": 1.2,
+                        "Lightly Active": 1.375,
+                        "Moderately Active": 1.55,
+                        "Very Active": 1.725,
+                        "Extra Active": 1.9
+                    };
+
+                    const activityValue = activityEl ? activityEl.value : '';
+                    // Default to Sedentary if no activity selected
+                    const multiplier = activityMultipliers[activityValue] || 1.2;
+                    const tdee = Math.round(bmr * multiplier);
+                    calEl.value = tdee;
+
+                    // Show suggestion dropdown with common activity levels
+                    showCalorieSuggestions(calEl, bmr, activityMultipliers);
+                } else {
+                    bmrEl.value = '';
+                    calEl.value = '';
+                }
+            }
+
+            // Show calorie suggestions based on different activity levels
+            function showCalorieSuggestions(calEl, bmr, multipliers) {
+                let existingList = document.getElementById('calorie-suggestions-list');
+                if (existingList) existingList.remove();
+
+                const suggestions = [
+                    { label: 'Sedentary (×1.2)', value: Math.round(bmr * 1.2) },
+                    { label: 'Lightly Active (×1.375)', value: Math.round(bmr * 1.375) },
+                    { label: 'Moderately Active (×1.55)', value: Math.round(bmr * 1.55) },
+                    { label: 'Very Active (×1.725)', value: Math.round(bmr * 1.725) },
+                    { label: 'Extra Active (×1.9)', value: Math.round(bmr * 1.9) },
+                ];
+
+                const list = document.createElement('ul');
+                list.id = 'calorie-suggestions-list';
+                list.style.cssText = 'position:absolute;z-index:9999;background:#fff;border:1px solid #ccc;border-radius:6px;list-style:none;padding:4px 0;margin:0;min-width:220px;box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:13px;';
+
+                suggestions.forEach(s => {
+                    const li = document.createElement('li');
+                    li.style.cssText = 'padding:7px 14px;cursor:pointer;display:flex;justify-content:space-between;gap:10px;';
+                    li.innerHTML = `<span style="color:#555">${s.label}</span><strong style="color:#086838">${s.value} kcal</strong>`;
+                    li.addEventListener('mouseenter', () => li.style.background = '#f0faf5');
+                    li.addEventListener('mouseleave', () => li.style.background = '');
+                    li.addEventListener('click', () => {
+                        calEl.value = s.value;
+                        list.remove();
+                    });
+                    list.appendChild(li);
+                });
+
+                // Position below the input
+                calEl.parentNode.style.position = 'relative';
+                calEl.parentNode.appendChild(list);
+
+                // Close on outside click
+                setTimeout(() => {
+                    document.addEventListener('click', function closeSugg(e) {
+                        if (!list.contains(e.target) && e.target !== calEl) {
+                            list.remove();
+                            document.removeEventListener('click', closeSugg);
+                        }
+                    });
+                }, 100);
+            }
+
+            // Show suggestions when user clicks/focuses Calories Req field
+            const caloriesInput = document.getElementById('caloriesInput');
+            if (caloriesInput) {
+                caloriesInput.addEventListener('focus', function() {
+                    const bmrEl = document.getElementById('bmrValueInput');
+                    const bmr = parseFloat(bmrEl ? bmrEl.value : 0);
+                    if (bmr > 0) {
                         const activityMultipliers = {
                             "Sedentary (Very Low Activity)": 1.2,
                             "Lightly Active": 1.375,
@@ -2030,18 +2116,16 @@
                             "Very Active": 1.725,
                             "Extra Active": 1.9
                         };
-                        
-                        const multiplier = activityMultipliers[activityEl.value] || 1.2;
-                        const tdee = bmr * multiplier;
-                        calEl.value = Math.round(tdee);
-                    } else {
-                        calEl.value = '';
+                        showCalorieSuggestions(this, bmr, activityMultipliers);
                     }
-                } else {
-                    bmrEl.value = '';
-                    calEl.value = '';
-                }
+                });
             }
+
+            // Also update calories when activity dropdown changes
+            const allActivityEls = document.querySelectorAll('#physicalActivityInput');
+            allActivityEls.forEach(el => {
+                el.addEventListener('change', calculateBMRAndTDEE);
+            });
 
             // Run on page load if values already present
             calculateBMI();
@@ -2341,6 +2425,7 @@
             // Trigger BMI and Payment calculations as they might depend on filled fields
             if (typeof calculateBMI === 'function') calculateBMI();
             if (typeof calculateDuePayment === 'function') calculateDuePayment();
+            if (typeof calculateBMRAndTDEE === 'function') calculateBMRAndTDEE();
 
             Swal.fire({
                 icon: 'success',

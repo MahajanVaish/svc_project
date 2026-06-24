@@ -1117,6 +1117,25 @@
                                                                     <span class="text-muted">Anything Else:</span> <span
                                                                         class="text-dark">{{ $metaArray['anything_else'] ?? 'None' }}</span>
                                                                 </div>
+                                                                <div class="col-12 mt-2 border-top pt-2">
+                                                                    <div class="row">
+                                                                        <div class="col-md-2 col-6">
+                                                                            <span class="text-muted">Height:</span> <strong>{{ $metaArray['pod_data'] ?? '---' }} cm</strong>
+                                                                        </div>
+                                                                        <div class="col-md-2 col-6">
+                                                                            <span class="text-muted">Weight:</span> <strong>{{ $metaArray['pod_bdy_weight'] ?? '---' }} kg</strong>
+                                                                        </div>
+                                                                        <div class="col-md-2 col-6">
+                                                                            <span class="text-muted">BMI:</span> <strong>{{ $metaArray['pod_bmr'] ?? '---' }}</strong>
+                                                                        </div>
+                                                                        <div class="col-md-3 col-6">
+                                                                            <span class="text-muted">BMR:</span> <strong>{{ $metaArray['pod_bmr_value'] ?? '---' }} kcal</strong>
+                                                                        </div>
+                                                                        <div class="col-md-3 col-12">
+                                                                            <span class="text-muted">Calories Req:</span> <strong>{{ $metaArray['pod_calories'] ?? '---' }} kcal</strong>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -1268,14 +1287,14 @@
                 const genderEl = document.getElementById('patientGender');
                 const activityEl = document.getElementById('physicalActivityInput');
 
-                if (!hEl || !wEl || !bmrEl || !calEl || !ageEl || !genderEl) return;
+                if (!hEl || !wEl || !bmrEl || !calEl) return;
 
                 const height = parseFloat(hEl.value);
                 const weight = parseFloat(wEl.value);
-                const age = parseInt(ageEl.value) || 0;
-                const gender = genderEl.value;
+                const age = parseInt(ageEl ? ageEl.value : 0) || 30;
+                const gender = genderEl ? genderEl.value : 'male';
 
-                if (height && weight && height > 0 && age > 0) {
+                if (height && weight && height > 0) {
                     let bmr = 0;
                     if (gender.toLowerCase() === 'female') {
                         bmr = (10 * weight) + (6.25 * height) - (5 * age) - 161;
@@ -1441,6 +1460,11 @@
                     let element = document.getElementsByName(key)[0];
                     if (element) element.value = value;
                 }
+
+                if (typeof calculateBMI === 'function') calculateBMI();
+                if (typeof calculateDuePayment === 'function') calculateDuePayment();
+                if (typeof calculateBMRAndTDEE === 'function') calculateBMRAndTDEE();
+
                 Swal.fire({
                     icon: 'success',
                     title: 'History Loaded',
