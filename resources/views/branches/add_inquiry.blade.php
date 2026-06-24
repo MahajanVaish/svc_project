@@ -718,6 +718,9 @@
             align-items: center;
             gap: 0.25rem;
         }
+        .table-responsive {
+            overflow: visible !important;
+        }
     </style>
 
     <div class="col-md-12 col-lg-10 m-auto p-0">
@@ -1350,8 +1353,8 @@
                                                     <thead>
                                                         <tr class="text-muted small">
                                                             <th style="width: 30%">Medicine</th>
-                                                            <!-- <th style="width: 20%">Dose</th>
-                                                                <th style="width: 15%">Days</th> -->
+                                                            <th style="width: 20%">Dose</th>
+                                                                <th style="width: 15%">Days</th>
                                                             <th style="width: 20%">Timing</th>
                                                             <th style="width: 15%"></th>
                                                         </tr>
@@ -1361,7 +1364,7 @@
                                                             <td><input type="text" name="homeo_medicine[]"
                                                                     class="form-control form-control-sm"
                                                                     placeholder="Medicine name" autocomplete="off"></td>
-                                                            <!-- <td>
+                                                            <td>
                                                                     <div class="autocomplete-container">
                                                                         <input type="text" name="homeo_dose[]"
                                                                             class="form-control form-control-sm dose-input"
@@ -1372,7 +1375,7 @@
                                                                 </td>
                                                                 <td><input type="text" name="homeo_days[]"
                                                                         class="form-control form-control-sm" placeholder="Days">
-                                                                </td> -->
+                                                                </td>
                                                             <td>
                                                                 <select name="homeo_timing[]"
                                                                     class="form-select form-select-sm">
@@ -1395,7 +1398,7 @@
                                         </div>
 
                                         <!-- INDOOR TREATMENT -->
-                                        <div class="treatment-section mb-4">
+                                        <div class="treatment-section mb-4" id="indoor-treatment-section" style="display: {{ old('pt_status') == 'IPD' ? 'block' : 'none' }};">
                                             <div class="section-divider">
                                                 <div class="title">Indoor Treatment</div>
                                                 <div class="line"></div>
@@ -1408,9 +1411,9 @@
                                                 <table class="table table-borderless treatment-table">
                                                     <thead>
                                                         <tr class="text-muted small">
-                                                            <th style="width: 18%">Medicine</th>
-                                                            <!-- <th style="width: 15%">Dose</th>
-                                                                <th style="width: 10%">Days</th> -->
+                                                            <th style="width: 25%">Medicine</th>
+                                                            <th style="width: 15%">Dose</th>
+                                                                <th style="width: 10%">Days</th>
                                                             <th style="width: 12%">Date</th>
                                                             <th style="width: 10%">Time</th>
                                                             <th style="width: 20%">Note</th>
@@ -1422,7 +1425,7 @@
                                                             <td><input type="text" name="indoor_medicine[]"
                                                                     class="form-control form-control-sm"
                                                                     placeholder="Medicine name" autocomplete="off"></td>
-                                                            <!-- <td>
+                                                            <td>
                                                                     <div class="autocomplete-container">
                                                                         <input type="text" name="indoor_dose[]"
                                                                             class="form-control form-control-sm dose-input"
@@ -1432,7 +1435,7 @@
                                                                     </div>
                                                                 </td>
                                                                 <td><input type="text" name="indoor_days[]"
-                                                                        class="form-control form-control-sm" placeholder="Days"> -->
+                                                                        class="form-control form-control-sm" placeholder="Days">
                                                             </td>
                                                             <td><input type="date" name="indoor_date[]"
                                                                     class="form-control form-control-sm"></td>
@@ -2061,6 +2064,25 @@
 
             document.getElementById('inquiry_date').value = today;
             document.getElementById('inquiry_time').value = now;
+
+            // Toggle Indoor Treatment based on PT.Status
+            const ptStatusSelect = document.getElementById('pt_status');
+            const indoorTreatmentSection = document.getElementById('indoor-treatment-section');
+            
+            function toggleIndoorTreatment() {
+                if (ptStatusSelect && indoorTreatmentSection) {
+                    if (ptStatusSelect.value === 'IPD') {
+                        indoorTreatmentSection.style.display = 'block';
+                    } else {
+                        indoorTreatmentSection.style.display = 'none';
+                    }
+                }
+            }
+            
+            if (ptStatusSelect) {
+                ptStatusSelect.addEventListener('change', toggleIndoorTreatment);
+                toggleIndoorTreatment();
+            }
         });
 
         function addMedicineRow(containerId) {
@@ -2204,7 +2226,8 @@
                     const item = document.createElement('div');
                     item.className = 'autocomplete-item';
                     item.textContent = suggestion;
-                    item.addEventListener('click', function () {
+                    item.addEventListener('mousedown', function (e) {
+                        e.preventDefault();
                         input.value = suggestion;
                         dropdown.classList.remove('show');
                     });
@@ -2434,8 +2457,10 @@
                         </td>
                     `;
             tbody.appendChild(newRow);
-            setupDoseAutocomplete(newRow.querySelector('.dose-input'), newRow.querySelector('.autocomplete-dropdown'));
-            setupMedicineAutocomplete(newRow.querySelector('.medicine-input'), newRow.querySelector('.autocomplete-dropdown'));
+            const doseInput = newRow.querySelector('.dose-input');
+            const medicineInput = newRow.querySelector('.medicine-input');
+            if (doseInput) setupDoseAutocomplete(doseInput, doseInput.nextElementSibling);
+            if (medicineInput) setupMedicineAutocomplete(medicineInput, medicineInput.nextElementSibling);
         }
 
         function addPrescriptionRow() {
@@ -2470,8 +2495,10 @@
                         </td>
                     `;
             tbody.appendChild(newRow);
-            setupDoseAutocomplete(newRow.querySelector('.dose-input'), newRow.querySelector('.autocomplete-dropdown'));
-            setupMedicineAutocomplete(newRow.querySelector('.medicine-input'), newRow.querySelector('.autocomplete-dropdown'));
+            const doseInput = newRow.querySelector('.dose-input');
+            const medicineInput = newRow.querySelector('.medicine-input');
+            if (doseInput) setupDoseAutocomplete(doseInput, doseInput.nextElementSibling);
+            if (medicineInput) setupMedicineAutocomplete(medicineInput, medicineInput.nextElementSibling);
         }
 
         function addHomeoRow() {
@@ -2484,6 +2511,13 @@
                                 <div class="autocomplete-dropdown"></div>
                             </div>
                         </td>
+                        <td>
+                            <div class="autocomplete-container">
+                                <input type="text" name="homeo_dose[]" class="form-control form-control-sm dose-input" placeholder="Select or type dose" autocomplete="off">
+                                <div class="autocomplete-dropdown"></div>
+                            </div>
+                        </td>
+                        <td><input type="text" name="homeo_days[]" class="form-control form-control-sm" placeholder="Days"></td>
                         <td>
                             <select name="homeo_timing[]" class="form-select form-select-sm">
                                 <option value="">Select</option>
@@ -2499,7 +2533,10 @@
                         </td>
                     `;
             tbody.appendChild(newRow);
-            setupMedicineAutocomplete(newRow.querySelector('.medicine-input'), newRow.querySelector('.autocomplete-dropdown'));
+            const doseInput = newRow.querySelector('.dose-input');
+            const medicineInput = newRow.querySelector('.medicine-input');
+            if (doseInput) setupDoseAutocomplete(doseInput, doseInput.nextElementSibling);
+            if (medicineInput) setupMedicineAutocomplete(medicineInput, medicineInput.nextElementSibling);
         }
 
         function addMedicineRow() {
@@ -2512,6 +2549,13 @@
                                 <div class="autocomplete-dropdown"></div>
                             </div>
                         </td>
+                        <td>
+                            <div class="autocomplete-container">
+                                <input type="text" name="indoor_dose[]" class="form-control form-control-sm dose-input" placeholder="Select or type dose" autocomplete="off">
+                                <div class="autocomplete-dropdown"></div>
+                            </div>
+                        </td>
+                        <td><input type="text" name="indoor_days[]" class="form-control form-control-sm" placeholder="Days"></td>
                         <td><input type="date" name="indoor_date[]" class="form-control form-control-sm"></td>
                         <td><input type="time" name="indoor_time[]" class="form-control form-control-sm"></td>
                         <td><input type="text" name="indoor_note[]" class="form-control form-control-sm" placeholder="Note"></td>
@@ -2522,7 +2566,10 @@
                         </td>
                 `;
             tbody.appendChild(newRow);
-            setupMedicineAutocomplete(newRow.querySelector('.medicine-input'), newRow.querySelector('.autocomplete-dropdown'));
+            const doseInput = newRow.querySelector('.dose-input');
+            const medicineInput = newRow.querySelector('.medicine-input');
+            if (doseInput) setupDoseAutocomplete(doseInput, doseInput.nextElementSibling);
+            if (medicineInput) setupMedicineAutocomplete(medicineInput, medicineInput.nextElementSibling);
         }
 
         function addOtherRow() {
@@ -3308,7 +3355,8 @@
                         const item = document.createElement('div');
                         item.className = 'autocomplete-item';
                         item.textContent = suggestion;
-                        item.addEventListener('click', () => {
+                        item.addEventListener('mousedown', (e) => {
+                            e.preventDefault();
                             selectItem(suggestion);
                         });
                         dropdown.appendChild(item);

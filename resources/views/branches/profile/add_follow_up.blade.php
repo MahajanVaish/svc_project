@@ -2146,7 +2146,8 @@
                         const item = document.createElement('div');
                         item.className = 'autocomplete-item';
                         item.textContent = suggestion;
-                        item.addEventListener('click', () => {
+                        item.addEventListener('mousedown', (e) => {
+                            e.preventDefault();
                             selectItem(suggestion);
                         });
                         dropdown.appendChild(item);

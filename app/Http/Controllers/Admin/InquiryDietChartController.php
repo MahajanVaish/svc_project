@@ -1753,6 +1753,66 @@ public function patientProfile($id)
             ->with('error', 'Patient not found or has been deleted.');
     }
 }
+
+    /**
+     * Update the patient's profile image.
+     */
+    public function updateProfileImage(Request $request, $id)
+    {
+        try {
+            $patient = AccInquiry::where('id', $id)
+                ->where('delete_status', '0')
+                ->firstOrFail();
+
+            $request->validate([
+                'profile_image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            ]);
+
+            if ($request->hasFile('profile_image')) {
+                // Find or create the Opt record for this patient
+                $opt = Opt::where('patient_id', $patient->patient_id)
+                    ->where(function ($q) {
+                        $q->whereNull('delete_status')
+                          ->orWhere('delete_status', '')
+                          ->orWhere('delete_status', '0');
+                    })
+                    ->orderByDesc('id')
+                    ->first();
+
+                if (!$opt) {
+                    $branch = Branch::where('branch_id', $patient->branch_id)->first();
+                    $opt = Opt::create([
+                        'patient_id'   => $patient->patient_id,
+                        'patient_name' => trim($patient->patient_f_name . ' ' . $patient->patient_m_name . ' ' . $patient->patient_l_name),
+                        'branch_id'    => $patient->branch_id,
+                        'branch'       => $branch ? $branch->branch_name : $patient->branch,
+                        'delete_status' => '0',
+                    ]);
+                }
+
+                // Delete old image if exists
+                $oldImage = $opt->getMetaValue('profile_image');
+                if ($oldImage && file_exists(public_path($oldImage))) {
+                    @unlink(public_path($oldImage));
+                }
+
+                $image = $request->file('profile_image');
+                $filename = 'acc_patient_' . $id . '_' . time() . '.' . $image->getClientOriginalExtension();
+                $image->move(public_path('uploads/profile'), $filename);
+                $path = 'uploads/profile/' . $filename;
+
+                $opt->setMetaValue('profile_image', $path);
+
+                return back()->with('success', 'Profile image updated successfully.');
+            }
+
+            return back()->with('error', 'No image file provided.');
+        } catch (\Exception $e) {
+            Log::error('Error updating ACC profile image: ' . $e->getMessage());
+            return back()->with('error', 'Error updating profile image: ' . $e->getMessage());
+        }
+    }
+
 private function getAllImages($optId, $type = 'before')
 {
     \Log::info('getAllImages() START', [
@@ -2722,10 +2782,40 @@ private function getAllImages($optId, $type = 'before')
         $paymentMethod = $request->payment_method ?? 'Cash';
         $paymentDate = $request->pod_bd_date ?? $request->payment_date ?? now()->format('Y-m-d');
 
-        // Invoice should be generated even if total payment is 0 (e.g. complimentary or just to have a record)
-        // if ($totalPayment <= 0 && $givenPayment <= 0) {
-        //     return;
-        // }
+        $isFoc = ($request->has('inquiry_foc') && !empty($request->input('inquiry_foc'))) || ($opt->getMetaValue('inquiry_foc') === 'Yes');
+
+        $hasPrograms = false;
+        if ($request->has('joined_program_id') && is_array($request->joined_program_id)) {
+            foreach ($request->joined_program_id as $pId) {
+                if (!empty($pId)) {
+                    $hasPrograms = true;
+                    break;
+                }
+            }
+        }
+        if (!$hasPrograms && $request->has('selected_program') && is_array($request->selected_program)) {
+            foreach ($request->selected_program as $programName) {
+                if (!empty($programName)) {
+                    $hasPrograms = true;
+                    break;
+                }
+            }
+        }
+        if (!$hasPrograms && $request->filled('program_name')) {
+            $hasPrograms = true;
+        }
+
+        // If there's no program, no payment, and FOC is not checked, we should not create or update an invoice.
+        if (!$hasPrograms && $totalPayment <= 0 && $givenPayment <= 0 && $discountPayment <= 0 && $duePayment <= 0 && !$isFoc) {
+            $invoiceNo = 'INV-DIET-' . $opt->id . '-' . $opt->patient_id;
+            $invoice = \App\Models\Invoice::where('invoice_no', $invoiceNo)->first();
+            if ($invoice) {
+                \App\Models\PatientTransaction::where('invoice_id', $invoice->id)->delete();
+                $invoice->delete();
+                \Log::info("syncDietInvoiceAndTransactions: Deleted empty invoice: {$invoiceNo}");
+            }
+            return;
+        }
 
         $invoiceNo = 'INV-DIET-' . $opt->id . '-' . $opt->patient_id;
 

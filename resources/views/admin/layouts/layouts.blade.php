@@ -1581,6 +1581,47 @@
             text-overflow: ellipsis;
             white-space: normal;
         }
+
+        .nav-branch-badge {
+            background-color: rgba(20, 184, 166, 0.08);
+            border: 1px solid rgba(20, 184, 166, 0.25);
+            transition: all 0.3s ease;
+            color: #0d9488;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-right: 8px;
+            white-space: nowrap;
+        }
+        .nav-branch-badge:hover {
+            background-color: rgba(20, 184, 166, 0.15);
+            border-color: rgba(20, 184, 166, 0.35);
+            transform: translateY(-1px);
+        }
+        .dark .nav-branch-badge {
+            background-color: rgba(20, 184, 166, 0.15);
+            border-color: rgba(20, 184, 166, 0.35);
+            color: #2dd4bf;
+        }
+
+        .nav-branch-badge.superadmin {
+            background-color: rgba(59, 130, 246, 0.08);
+            border-color: rgba(59, 130, 246, 0.25);
+            color: #2563eb;
+        }
+        .nav-branch-badge.superadmin:hover {
+            background-color: rgba(59, 130, 246, 0.15);
+            border-color: rgba(59, 130, 246, 0.35);
+        }
+        .dark .nav-branch-badge.superadmin {
+            background-color: rgba(59, 130, 246, 0.15);
+            border-color: rgba(59, 130, 246, 0.35);
+            color: #60a5fa;
+        }
     </style>
 </head>
 
@@ -1628,6 +1669,18 @@
 
                     $isFromOtherBranch = in_array($userBranchName, $otherBranches) || $isSuperadmin;
                 @endphp
+
+                @if(!empty($userBranchName))
+                    <span class="nav-branch-badge">
+                        <i class="fas fa-code-branch"></i>
+                        {{ $userBranchName }}
+                    </span>
+                @elseif($isSuperadmin)
+                    <span class="nav-branch-badge superadmin">
+                        <i class="fas fa-user-shield"></i>
+                        Superadmin
+                    </span>
+                @endif
 
                 @if($isDoctor)
                     <a href="{{ $isSuperadmin ? route('admin.dashboard') : route('dashboard') }}"

@@ -667,7 +667,7 @@
 
     .table-responsive {
         width: 100%;
-        overflow-x: auto;
+        overflow: visible !important;
         -webkit-overflow-scrolling: touch;
     }
 
@@ -1389,9 +1389,9 @@
                                             <table class="table table-borderless treatment-table">
                                                 <thead>
                                                     <tr class="text-muted small">
-                                                        <th style="width: 18%">Medicine</th>
-                                                        {{-- <th style="width: 15%">Dose</th>
-                                                        <th style="width: 10%">Days</th> --}}
+                                                        <th style="width: 25%">Medicine</th>
+                                                        <th style="width: 15%">Dose</th>
+                                                        <th style="width: 10%">Days</th>
                                                         <th style="width: 12%">Date</th>
                                                         <th style="width: 10%">Time</th>
                                                         <th style="width: 20%">Note</th>
@@ -1403,13 +1403,13 @@
                                                         @foreach($indoorRows as $index => $row)
                                                             <tr>
                                                                 <td><input type="text" name="indoor_medicine[]" class="form-control form-control-sm" value="{{ $row['medicine'] ?? '' }}" placeholder="Medicine name"></td>
-                                                                {{-- <td>
+                                                                <td>
                                                                     <div class="autocomplete-container">
                                                                         <input type="text" name="indoor_dose[]" class="form-control form-control-sm dose-input" value="{{ $row['dose'] ?? '' }}" placeholder="Select or type dose" autocomplete="off">
                                                                         <div class="autocomplete-dropdown"></div>
                                                                     </div>
                                                                 </td>
-                                                                <td><input type="text" name="indoor_days[]" class="form-control form-control-sm" value="{{ $row['days'] ?? '' }}" placeholder="Days"></td> --}}
+                                                                <td><input type="text" name="indoor_days[]" class="form-control form-control-sm" value="{{ $row['days'] ?? '' }}" placeholder="Days"></td>
                                                                 <td><input type="date" name="indoor_date[]" class="form-control form-control-sm" value="{{ $row['date'] ?? '' }}"></td>
                                                                 <td><input type="time" name="indoor_time[]" class="form-control form-control-sm" value="{{ $row['time'] ?? '' }}"></td>
                                                                 <td><input type="text" name="indoor_note[]" class="form-control form-control-sm" value="{{ $row['note'] ?? '' }}" placeholder="Note"></td>
@@ -2088,6 +2088,13 @@ function addMedicineRow() {
     let newRow = document.createElement("tr");
     newRow.innerHTML = `
         <td><input type="text" name="indoor_medicine[]" class="form-control form-control-sm" placeholder="Medicine name" autocomplete="off"></td>
+        <td>
+            <div class="autocomplete-container">
+                <input type="text" name="indoor_dose[]" class="form-control form-control-sm dose-input" placeholder="Select or type dose" autocomplete="off">
+                <div class="autocomplete-dropdown"></div>
+            </div>
+        </td>
+        <td><input type="text" name="indoor_days[]" class="form-control form-control-sm" placeholder="Days"></td>
         <td><input type="date" name="indoor_date[]" class="form-control form-control-sm"></td>
         <td><input type="time" name="indoor_time[]" class="form-control form-control-sm"></td>
         <td><input type="text" name="indoor_note[]" class="form-control form-control-sm" placeholder="Note"></td>
@@ -2628,7 +2635,8 @@ function toggleOtherSection(iconBox) {
                     const item = document.createElement('div');
                     item.className = 'autocomplete-item';
                     item.textContent = suggestion;
-                    item.addEventListener('click', function() {
+                    item.addEventListener('mousedown', function(e) {
+                        e.preventDefault();
                         input.value = suggestion;
                         dropdown.classList.remove('show');
                     });

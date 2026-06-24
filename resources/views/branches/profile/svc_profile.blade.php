@@ -1199,10 +1199,12 @@
             </div>
             <div class="header-right">
 
+                @if($patient->getMeta('pt_status') === 'IPD')
                 <button type="button" class="follow-up-btn" data-bs-toggle="modal" data-bs-target="#indoorTreatmentModal"
                     style="background-color: #007bff; border-color: #007bff; margin-right: 10px;">
                     <i class="bi bi-hospital"></i> Indoor Treatment
                 </button>
+                @endif
                 <a href="{{ route('add.follow.up', ['patient_id' => $patient->patient_id]) }}" class="follow-up-btn">Add
                     Follow Up</a>
             </div>
@@ -2346,6 +2348,7 @@
                         </div>
                     </div>
 
+                    @if($patient->getMeta('pt_status') === 'IPD')
                     <!-- Indoor Treatment Display Section -->
                     <div class="row pt-5">
                         <div class="col-lg-12 p-0">
@@ -2451,6 +2454,7 @@
                             @endif
                         </div>
                     </div>
+                    @endif
 
                     <!-- Other Treatment Section -->
                     <div class="row pt-5">

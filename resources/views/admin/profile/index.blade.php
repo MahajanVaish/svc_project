@@ -53,6 +53,15 @@
                             
                             <h5 class="mt-3 mb-1 text-slate-800 dark:text-slate-100 fw-bold">{{ $user->name }}</h5>
                             <p class="text-secondary dark:text-slate-400 mb-0 small">{{ $user->email }}</p>
+
+                            @if($user->branch)
+                                <div class="mt-2">
+                                    <span class="badge bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-800/50 px-3 py-1.5 rounded-pill font-semibold text-xs d-inline-flex align-items-center gap-1.5">
+                                        <i class="fas fa-store-alt text-teal-600 dark:text-teal-400"></i>
+                                        Branch: {{ $user->branch->branch_name }}
+                                    </span>
+                                </div>
+                            @endif
                             
                             @error('profile_image')
                                 <div class="text-danger small mt-2">{{ $message }}</div>

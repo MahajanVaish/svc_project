@@ -369,6 +369,22 @@ class SVCController extends Controller
                 ]);
 
 
+                $totalPayment = (float) $request->input('total_payment', 0);
+                $discountPayment = (float) $request->input('discount_payment', 0);
+                $cashPayment = (float) $request->input('cash_payment', 0);
+                $gpayPayment = (float) $request->input('gp_payment', 0);
+                $chequePayment = (float) $request->input('cheque_payment', 0);
+                $givenPayment = $cashPayment + $gpayPayment + $chequePayment;
+
+                if ($totalPayment <= 0 && $givenPayment > 0) {
+                    $totalPayment = $givenPayment;
+                }
+
+                $duePayment = (float) $request->input('due_payment', $totalPayment - $discountPayment - $givenPayment);
+                if ($duePayment < 0) {
+                    $duePayment = 0.0;
+                }
+
                 // Fields that must be saved as meta because they aren't in the main table
                 $explicitMetaFields = [
                     'gender',
@@ -386,7 +402,15 @@ class SVCController extends Controller
                     if ($field === 'foc') {
                         $patient->setMeta('foc', $request->has('foc') ? 'on' : null);
                     } else if ($request->has($field)) {
-                        $patient->setMeta($field, $request->input($field));
+                        $val = $request->input($field);
+                        if ($field === 'total_payment') {
+                            $val = $totalPayment;
+                        } elseif ($field === 'due_payment') {
+                            $val = $duePayment;
+                        } elseif ($field === 'given_payment') {
+                            $val = $givenPayment;
+                        }
+                        $patient->setMeta($field, $val);
                     }
                 }
 
@@ -484,7 +508,6 @@ class SVCController extends Controller
                 }
 
                 // Create Invoice and Transactions for Registration Charges
-                $totalPayment = (float) $request->input('total_payment', 0);
                 if ($totalPayment > 0) {
                     $invoiceNo = 'INV-' . $patientId;
 
@@ -542,15 +565,7 @@ class SVCController extends Controller
                         ];
                     }
 
-                    $totalPayment = (float) $request->input('total_payment', 0);
-                    $discountPayment = (float) $request->input('discount_payment', 0);
-                    
-                    $cashPayment = (float) $request->input('cash_payment', 0);
-                    $gpayPayment = (float) $request->input('gp_payment', 0);
-                    $chequePayment = (float) $request->input('cheque_payment', 0);
-                    $givenPayment = $cashPayment + $gpayPayment + $chequePayment;
-                    
-                    $duePayment = (float) $request->input('due_payment', $totalPayment - $discountPayment - $givenPayment);
+
 
                     $invoice = Invoice::create([
                         'branch_id' => $branch->branch_id,
@@ -594,13 +609,19 @@ class SVCController extends Controller
 
                     // Credit Transaction
                     if ($givenPayment > 0) {
+                        $methods = [];
+                        if ($cashPayment > 0) $methods[] = 'Cash';
+                        if ($gpayPayment > 0) $methods[] = 'G-Pay';
+                        if ($chequePayment > 0) $methods[] = 'Cheque';
+                        $paymentMethod = !empty($methods) ? implode('+', $methods) : 'Cash';
+
                         PatientTransaction::create([
                             'branch_id' => $branch->branch_id,
                             'patient_id' => $patient->id,
                             'invoice_id' => $invoice->id,
                             'type' => 'credit',
                             'amount' => $givenPayment,
-                            'description' => $descPrefix . ' (Registration & Consultation) Payment Received (' . ($request->input('payment_method') ?? 'Cash') . ') for Invoice: ' . $invoice->invoice_no,
+                            'description' => $descPrefix . ' (Registration & Consultation) Payment Received (' . $paymentMethod . ') for Invoice: ' . $invoice->invoice_no,
                         ]);
                     }
                 }
@@ -748,26 +769,55 @@ class SVCController extends Controller
                 'inquiry_time'
             ];
 
+            $totalPayment = (float) $request->input('total_payment', 0);
+            $discountPayment = (float) $request->input('discount_payment', 0);
+            $cashPayment = (float) $request->input('cash_payment', 0);
+            $gpayPayment = (float) $request->input('gp_payment', 0);
+            $chequePayment = (float) $request->input('cheque_payment', 0);
+            $givenPayment = $cashPayment + $gpayPayment + $chequePayment;
+
+            // If total payment is not set but payment is given, default total payment to given payment
+            if ($totalPayment <= 0 && $givenPayment > 0) {
+                $totalPayment = $givenPayment;
+            }
+
+            $duePayment = (float) $request->input('due_payment', $totalPayment - $discountPayment - $givenPayment);
+            if ($duePayment < 0) {
+                $duePayment = 0.0;
+            }
+
             foreach ($metaFields as $field) {
                 if ($request->has($field)) {
-                    $patient->setMeta($field, $request->input($field));
+                    $val = $request->input($field);
+                    if ($field === 'total_payment') {
+                        $val = $totalPayment;
+                    } elseif ($field === 'due_payment') {
+                        $val = $duePayment;
+                    } elseif ($field === 'given_payment') {
+                        $val = $givenPayment;
+                    }
+                    $patient->setMeta($field, $val);
                 }
             }
 
             // Handle foc explicitly for checkbox state
             $patient->setMeta('foc', $request->has('foc') ? 'on' : null);
 
-            // Update Invoice if exists
+            // Update or Create Invoice
             $invoice = Invoice::where('patient_id', $patient->id)->first();
-            if ($invoice) {
-                $totalPayment = (float) $request->input('total_payment', 0);
-                $discountPayment = (float) $request->input('discount_payment', 0);
-                $cashPayment = (float) $request->input('cash_payment', 0);
-                $gpayPayment = (float) $request->input('gp_payment', 0);
-                $chequePayment = (float) $request->input('cheque_payment', 0);
-                $givenPayment = $cashPayment + $gpayPayment + $chequePayment;
-                $duePayment = (float) $request->input('due_payment', $totalPayment - $discountPayment - $givenPayment);
 
+            // Determine branch prefix
+            if ($patient->branch_id === 'LB-0007') {
+                $descPrefix = 'LHR Service';
+            } elseif ($patient->branch_id === 'BH-00023') {
+                $descPrefix = 'Hydra Service';
+            } elseif ($patient->branch_id === 'SVC-0005') {
+                $descPrefix = 'SVC Service';
+            } else {
+                $descPrefix = 'FNF Service';
+            }
+
+            if ($invoice) {
                 $selectedChargeIds = $request->input('charge_id', []);
                 if (!is_array($selectedChargeIds))
                     $selectedChargeIds = [$selectedChargeIds];
@@ -819,12 +869,151 @@ class SVCController extends Controller
                     $debitTx->update([
                         'amount' => $totalPayment,
                     ]);
+                } else {
+                    PatientTransaction::create([
+                        'branch_id' => $patient->branch_id,
+                        'patient_id' => $patient->id,
+                        'invoice_id' => $invoice->id,
+                        'type' => 'debit',
+                        'amount' => $totalPayment,
+                        'description' => $descPrefix . ' (Registration & Consultation) - Invoice Generated: ' . $invoice->invoice_no,
+                    ]);
                 }
 
                 $creditTx = PatientTransaction::where('invoice_id', $invoice->id)->where('type', 'credit')->first();
                 if ($creditTx) {
-                    $creditTx->update([
+                    if ($givenPayment > 0) {
+                        $methods = [];
+                        if ($cashPayment > 0) $methods[] = 'Cash';
+                        if ($gpayPayment > 0) $methods[] = 'G-Pay';
+                        if ($chequePayment > 0) $methods[] = 'Cheque';
+                        $paymentMethod = !empty($methods) ? implode('+', $methods) : 'Cash';
+
+                        $creditTx->update([
+                            'amount' => $givenPayment,
+                            'description' => $descPrefix . ' (Registration & Consultation) Payment Received (' . $paymentMethod . ') for Invoice: ' . $invoice->invoice_no,
+                        ]);
+                    } else {
+                        $creditTx->delete();
+                    }
+                } elseif ($givenPayment > 0) {
+                    $methods = [];
+                    if ($cashPayment > 0) $methods[] = 'Cash';
+                    if ($gpayPayment > 0) $methods[] = 'G-Pay';
+                    if ($chequePayment > 0) $methods[] = 'Cheque';
+                    $paymentMethod = !empty($methods) ? implode('+', $methods) : 'Cash';
+
+                    PatientTransaction::create([
+                        'branch_id' => $patient->branch_id,
+                        'patient_id' => $patient->id,
+                        'invoice_id' => $invoice->id,
+                        'type' => 'credit',
                         'amount' => $givenPayment,
+                        'description' => $descPrefix . ' (Registration & Consultation) Payment Received (' . $paymentMethod . ') for Invoice: ' . $invoice->invoice_no,
+                    ]);
+                }
+            } elseif ($totalPayment > 0) {
+                // Create Invoice and Transactions for Registration Charges if they didn't exist before
+                $invoiceNo = 'INV-' . $patient->patient_id;
+
+                // Check if invoice number already exists
+                $counter = 1;
+                $finalInvoiceNo = $invoiceNo;
+                while (Invoice::where('invoice_no', $finalInvoiceNo)->exists()) {
+                    $finalInvoiceNo = $invoiceNo . '-' . $counter;
+                    $counter++;
+                }
+
+                // Generate Filename
+                $pNameClean = preg_replace('/[^A-Za-z0-9]/', '', $patient->patient_name ?? 'Patient');
+                $bNameClean = preg_replace('/[^A-Za-z0-9]/', '', $patient->branch ?? 'Branch');
+                $invoiceFile = $pNameClean . $bNameClean . '-' . $finalInvoiceNo . '-' . now()->format('d-m-Y') . '.pdf';
+
+                $selectedChargeIds = $request->input('charge_id', []);
+                if (!is_array($selectedChargeIds))
+                    $selectedChargeIds = [$selectedChargeIds];
+
+                $chargesData = [];
+                $selectedCharges = Charges::whereIn('id', $selectedChargeIds)->get();
+                if ($selectedCharges->count() > 0) {
+                    foreach ($selectedCharges as $c) {
+                        $chargesData[] = [
+                            'charge_id' => $c->id,
+                            'charge_name' => $c->charges_name,
+                            'price' => $c->charges_price
+                        ];
+                    }
+                }
+
+                // Add Custom Charges
+                $customNames = $request->input('custom_charge_name', []);
+                $customPrices = $request->input('custom_charge_price', []);
+                if (is_array($customNames)) {
+                    foreach ($customNames as $index => $name) {
+                        if (!empty($name) && isset($customPrices[$index])) {
+                            $chargesData[] = [
+                                'charge_id' => null,
+                                'charge_name' => $name,
+                                'price' => $customPrices[$index]
+                            ];
+                        }
+                    }
+                }
+
+                if (empty($chargesData)) {
+                    $chargesData = [
+                        [
+                            'charge_id' => null,
+                            'charge_name' => 'Registration & Consultation Charges',
+                            'price' => $totalPayment
+                        ]
+                    ];
+                }
+
+                $invoice = Invoice::create([
+                    'branch_id' => $patient->branch_id,
+                    'patient_id' => $patient->id,
+                    'invoice_no' => $finalInvoiceNo,
+                    'invoice_date' => now()->format('Y-m-d'),
+                    'address' => $patient->address,
+                    'phone' => $patient->getMeta('phone'),
+                    'price' => $totalPayment,
+                    'total_payment' => $totalPayment,
+                    'discount' => $discountPayment,
+                    'given_payment' => $givenPayment,
+                    'due_payment' => $duePayment,
+                    'invoice_file' => $invoiceFile,
+                    'charges_data' => $chargesData,
+                    'cash_payment' => $cashPayment,
+                    'gpay_payment' => $gpayPayment,
+                    'cheque_payment' => $chequePayment,
+                ]);
+
+                // Debit Transaction
+                PatientTransaction::create([
+                    'branch_id' => $patient->branch_id,
+                    'patient_id' => $patient->id,
+                    'invoice_id' => $invoice->id,
+                    'type' => 'debit',
+                    'amount' => $totalPayment,
+                    'description' => $descPrefix . ' (Registration & Consultation) - Invoice Generated: ' . $invoice->invoice_no,
+                ]);
+
+                // Credit Transaction
+                if ($givenPayment > 0) {
+                    $methods = [];
+                    if ($cashPayment > 0) $methods[] = 'Cash';
+                    if ($gpayPayment > 0) $methods[] = 'G-Pay';
+                    if ($chequePayment > 0) $methods[] = 'Cheque';
+                    $paymentMethod = !empty($methods) ? implode('+', $methods) : 'Cash';
+
+                    PatientTransaction::create([
+                        'branch_id' => $patient->branch_id,
+                        'patient_id' => $patient->id,
+                        'invoice_id' => $invoice->id,
+                        'type' => 'credit',
+                        'amount' => $givenPayment,
+                        'description' => $descPrefix . ' (Registration & Consultation) Payment Received (' . $paymentMethod . ') for Invoice: ' . $invoice->invoice_no,
                     ]);
                 }
             }
@@ -1119,8 +1308,27 @@ class SVCController extends Controller
             $gpayPayment = (float) $request->input('gp_payment', 0);
             $chequePayment = (float) $request->input('cheque_payment', 0);
             $amount = $cashPayment + $gpayPayment + $chequePayment;
+            $method = 'Split';
+
+            if ($amount <= 0 && $request->filled('amount')) {
+                $amount = (float) $request->input('amount', 0);
+                $method = $request->input('payment_method', 'Cash');
+                if (strtolower($method) === 'cash') {
+                    $cashPayment = $amount;
+                } elseif (in_array(strtolower($method), ['online', 'g-pay', 'gpay', 'gp-pay'])) {
+                    $gpayPayment = $amount;
+                } elseif (strtolower($method) === 'cheque') {
+                    $chequePayment = $amount;
+                }
+            } else {
+                $methods = [];
+                if ($cashPayment > 0) $methods[] = 'Cash';
+                if ($gpayPayment > 0) $methods[] = 'G-Pay';
+                if ($chequePayment > 0) $methods[] = 'Cheque';
+                $method = !empty($methods) ? implode('+', $methods) : 'Cash';
+            }
+
             $discount = (float) $request->input('discount', 0);
-            $method = $amount > 0 ? 'Split' : 'None';
             $note = $request->input('note', 'Quick Payment');
 
             if ($amount <= 0 && $discount <= 0) {
@@ -1482,7 +1690,7 @@ class SVCController extends Controller
 
             $groups = [
                 'inside' => ['dose', 'timing', 'days'],
-                'homeo' => ['timing', 'days'],
+                'homeo' => ['dose', 'timing', 'days'],
                 'prescription' => ['dose', 'timing', 'days'],
                 'indoor' => ['dose', 'note', 'days', 'date', 'time'],
                 'other' => ['note'],
@@ -2217,7 +2425,7 @@ class SVCController extends Controller
 
             $groups = [
                 'inside' => ['dose', 'timing', 'days'],
-                'homeo' => ['timing', 'days'],
+                'homeo' => ['dose', 'timing', 'days'],
                 'prescription' => ['dose', 'timing', 'days'],
                 'indoor' => ['dose', 'note', 'days', 'date', 'time'],
                 'other' => ['note'],

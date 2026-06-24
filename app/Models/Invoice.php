@@ -40,7 +40,10 @@ class Invoice extends Model
         'due_payment',
         'invoice_file',
         'charges_data',
-        'programs_data'
+        'programs_data',
+        'cash_payment',
+        'gpay_payment',
+        'cheque_payment'
     ];
 
     protected $casts = [
@@ -53,6 +56,9 @@ class Invoice extends Model
         'due_payment' => 'float',
         'charges_data' => 'array',
         'programs_data' => 'array',
+        'cash_payment' => 'float',
+        'gpay_payment' => 'float',
+        'cheque_payment' => 'float',
     ];
 
     // Relationships

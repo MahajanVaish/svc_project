@@ -547,6 +547,7 @@
                         <td><span class="badge-ipd">SVC Patient</span></td>
                         <td>
                             <div class="action-buttons">
+                                @if($patient->getMeta('pt_status') === 'IPD')
                                 <button type="button" class="action-btn btn-profile-square" 
                                     onclick="openIndoorModal({{ json_encode([
                                         'id' => $patient->id,
@@ -559,6 +560,7 @@
                                     title="Manage Treatment">
                                     <i class="bi bi-hospital"></i>
                                 </button>
+                                @endif
                                 <a href="{{ route('svc.profile', $patient->id) }}" class="action-btn btn-profile-square" title="View Profile">
                                     <i class="fas fa-address-card"></i>
                                 </a>
