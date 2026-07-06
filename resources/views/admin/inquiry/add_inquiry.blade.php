@@ -269,9 +269,7 @@
                                 <input type="hidden" name="lead_id" value="{{ $lead->id }}">
                             @endif
 
-                            @if (!isset($lead) && !request()->has('default_status'))
-                                <input type="hidden" name="user_status[]" value="Diet Chart">
-                            @endif
+                            {{-- Hidden Diet Chart input removed to allow user to select process stage purely from checkboxes --}}
 
                             <div class="row mb-4">
                                 <div class="col-md-12">

@@ -582,28 +582,124 @@
     <div class="search-section">
         <form method="GET" action="{{ route('indoor.patients') }}" id="searchForm">
             <div class="dual-search-container">
-                <div class="global-search-wrapper">
-                    <label class="search-label">Search Patients</label>
-                    <input type="text" name="global_search" class="search-input" placeholder="Name, ID, or diagnosis..."
-                        value="{{ request('global_search') }}" id="globalSearchInput">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <input type="text" name="global_search" class="search-input"
+                        placeholder="Search by name, ID, diagnosis, address, age..."
+                        value="{{ request('global_search') }}" id="globalSearchInput"
+                        autocomplete="off" style="width: 350px;">
+                    <button type="button" id="clearSearchBtn" title="Clear search"
+                        style="background:#e9ecef; border:1px solid #ced4da; border-radius:4px; cursor:pointer; color:#555; font-size:14px; padding:6px 10px; display:{{ request('global_search') ? 'flex' : 'none' }}; align-items:center; gap:4px; flex-shrink:0;">
+                        <i class="bi bi-x-lg"></i> Clear
+                    </button>
                 </div>
-                <div class="per-page-wrapper">
-                    <label class="search-label">Show Entries</label>
+                <div style="width: 150px;">
+                    <label class="search-label">Show</label>
                     <select name="per_page" class="form-select form-select-sm" onchange="this.form.submit()">
                         <option value="10" {{ request('per_page') == 10 ? 'selected' : '' }}>10 entries</option>
                         <option value="25" {{ request('per_page') == 25 ? 'selected' : '' }}>25 entries</option>
                         <option value="50" {{ request('per_page') == 50 ? 'selected' : '' }}>50 entries</option>
                     </select>
                 </div>
-                <div class="search-btn-wrapper">
-                    <button type="submit" class="btn btn-primary"
-                        style="background-color: #006637; border: none; height: 38px;">
+                <div style="margin-top: 25px;">
+                    <button type="submit" class="btn btn-primary" style="background-color: #006637; border: none;">
                         <i class="bi bi-search"></i> Search
                     </button>
                 </div>
             </div>
         </form>
     </div>
+
+    {{-- Live search results container --}}
+    <div id="liveTableWrapper">
+        {{-- Will be replaced by AJAX results --}}
+    </div>
+
+    <script>
+    (function() {
+        const searchInput   = document.getElementById('globalSearchInput');
+        const clearBtn      = document.getElementById('clearSearchBtn');
+        const tableWrapper  = document.querySelector('.table-responsive');
+        const paginationDiv = document.querySelector('.pagination');
+        const liveWrapper   = document.getElementById('liveTableWrapper');
+        let debounceTimer   = null;
+
+        if (!searchInput) return;
+
+        function toggleClearBtn() {
+            if (clearBtn) {
+                clearBtn.style.display = searchInput.value.trim() ? 'flex' : 'none';
+            }
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                searchInput.value = '';
+                toggleClearBtn();
+                searchInput.focus();
+                window.location.href = '{{ route('indoor.patients') }}' +
+                    ({{ request('per_page') ? 'true' : 'false' }} ? '?per_page={{ request('per_page', 10) }}' : '');
+            });
+        }
+
+        searchInput.addEventListener('input', function() {
+            toggleClearBtn();
+            const query = this.value.trim();
+            clearTimeout(debounceTimer);
+
+            if (query.length === 0) {
+                if (tableWrapper)  tableWrapper.style.display  = '';
+                if (paginationDiv) paginationDiv.style.display = '';
+                liveWrapper.innerHTML = '';
+                return;
+            }
+
+            if (query.length < 2) return;
+
+            debounceTimer = setTimeout(() => {
+                const tbody = tableWrapper ? tableWrapper.querySelector('tbody') : null;
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td colspan="10" class="text-center py-4">
+                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>Searching...
+                    </td></tr>`;
+                }
+                if (paginationDiv) paginationDiv.style.display = 'none';
+
+                fetch(`{{ route('indoor.patients') }}?global_search=${encodeURIComponent(query)}&per_page={{ request('per_page', 10) }}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }
+                })
+                .then(r => r.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc    = parser.parseFromString(html, 'text/html');
+
+                    const newTbody = doc.querySelector('.patient-table tbody');
+                    if (tbody && newTbody) {
+                        tbody.innerHTML = newTbody.innerHTML;
+                    }
+
+                    const newPagination = doc.querySelector('.pagination');
+                    if (paginationDiv) {
+                        if (newPagination) {
+                            paginationDiv.outerHTML = newPagination.outerHTML;
+                        } else {
+                            paginationDiv.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(() => {
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="text-center text-danger py-3">Search failed. Use the Search button.</td></tr>';
+                });
+            }, 400);
+        });
+
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('searchForm').submit();
+            }
+        });
+    })();
+    </script>
 
     <div class="table-responsive">
         <table class="patient-table">
@@ -687,10 +783,10 @@
                     ]) }})" title="Payment Details" style="border-color: #28a745; color: #28a745 !important;">
                                             <i class="fas fa-rupee-sign"></i>
                                         </button>
-                                        <a href="{{ route('ipd.profile', $patient->id) }}" class="action-btn btn-profile-square"
+                                        <!-- <a href="{{ route('ipd.profile', $patient->id) }}" class="action-btn btn-profile-square"
                                             title="View Profile">
                                             <i class="fas fa-address-card"></i>
-                                        </a>
+                                        </a> -->
                                         <a href="{{ route('edit.svc.inquiry', $patient->id) }}" class="action-btn btn-profile-square"
                                             title="Edit Inquiry" style="border-color: #007bff; color: #007bff !important;">
                                             <i class="fas fa-edit"></i>

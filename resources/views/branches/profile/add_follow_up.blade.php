@@ -479,15 +479,15 @@
                                         <div class="pro_filed pt-3">
                                             <div class="form">
                                                 <div class="form-col">
-                                                    <label for="gender" class="required">Gender</label>
+                                                    <label for="gender">Gender</label>
+                                                    @php
+                                                        $patientGender = strtolower($patient->getMeta('gender') ?? $patient->gender ?? '');
+                                                    @endphp
                                                     <select name="gender">
-                                                        <option value="male"
-                                                            {{ $patient->gender == 'male' ? 'selected' : '' }}>Male
-                                                        </option>
-                                                        <option value="female"
-                                                            {{ $patient->gender == 'female' ? 'selected' : '' }}>
-                                                            Female
-                                                        </option>
+                                                        <option value="">-- Select --</option>
+                                                        <option value="male"   {{ $patientGender == 'male'   ? 'selected' : '' }}>Male</option>
+                                                        <option value="female" {{ $patientGender == 'female' ? 'selected' : '' }}>Female</option>
+                                                        <option value="other"  {{ $patientGender == 'other'  ? 'selected' : '' }}>Other</option>
                                                     </select>
                                                 </div>
                                             </div>
@@ -515,15 +515,15 @@
 
                                                         @forelse ($allWeights as $index => $weight)
                                                             <div class="">
-                                                                <input type="number" name="weight[]"
+                                                                <input type="number" step="0.01" name="weight[]"
                                                                     class="dynamic-field-input" value="{{ $weight }}"
-                                                                    placeholder="Enter weight">
+                                                                    placeholder="e.g. 65.50">
                                                             </div>
                                                         @empty
                                                             <div class="">
-                                                                <input type="number" name="weight[]"
+                                                                <input type="number" step="0.01" name="weight[]"
                                                                     class="dynamic-field-input" value=""
-                                                                    placeholder="Enter weight">
+                                                                    placeholder="e.g. 65.50">
                                                             </div>
                                                         @endforelse
                                                     </div>
@@ -568,28 +568,24 @@
                                                 <div class="form-col">
                                                     <label for="pt_status">PT.Status</label>
                                                     <div class="dynamic-fields-container" id="pt_status-container">
-                                                        @forelse ($ptStatusValues as $index => $val)
+                                                        @php
+                                                            // Filter out empty strings so @empty works correctly for truly new followups
+                                                            $ptStatusFiltered = array_filter($ptStatusValues, fn($v) => $v !== '');
+                                                        @endphp
+                                                        @forelse ($ptStatusFiltered as $index => $val)
                                                             <div class="">
                                                                 <select name="pt_status[]" class="dynamic-field-input">
-                                                                    <option value="IPD"
-                                                                        {{ $val == 'IPD' ? 'selected' : '' }}>IPD
-                                                                    </option>
-                                                                    <option value="OPD"
-                                                                        {{ $val == 'OPD' ? 'selected' : '' }}>OPD
-                                                                    </option>
-                                                                    <option value="Home Visit"
-                                                                        {{ $val == 'Home Visit' ? 'selected' : '' }}>
-                                                                        Home
-                                                                        Visit
-                                                                    </option>
+                                                                    <option value="IPD"        {{ $val == 'IPD'        ? 'selected' : '' }}>IPD</option>
+                                                                    <option value="OPD"        {{ $val == 'OPD'        ? 'selected' : '' }}>OPD</option>
+                                                                    <option value="Home Visit" {{ $val == 'Home Visit' ? 'selected' : '' }}>Home Visit</option>
                                                                 </select>
                                                             </div>
                                                         @empty
+                                                            {{-- New followup: default OPD --}}
                                                             <div class="">
                                                                 <select name="pt_status[]" class="dynamic-field-input">
-                                                                    <option value="">Select Status</option>
                                                                     <option value="IPD">IPD</option>
-                                                                    <option value="OPD">OPD</option>
+                                                                    <option value="OPD" selected>OPD</option>
                                                                     <option value="Home Visit">Home Visit</option>
                                                                 </select>
                                                             </div>
@@ -1957,6 +1953,7 @@
         // Global Medicine & Dose Suggestion Cache
         window.cachedMedicines = [];
         window.cachedMedicineDoses = {};
+        window.cachedMedicineTimings = {};
         window.cachedDoses = [];
 
         function loadMedicineSuggestions() {
@@ -1992,6 +1989,7 @@
                     if (data.success) {
                         window.cachedMedicines = data.medicines || [];
                         window.cachedMedicineDoses = data.medicine_doses || {};
+                        window.cachedMedicineTimings = data.medicine_timings || {};
                         window.cachedDoses = data.doses || [];
                         
                         // Initialize medicine autocomplete on all medicine inputs
@@ -2163,14 +2161,17 @@
                 dropdown.classList.remove('show');
                 selectedIndex = -1;
 
-                // Auto-fill dose if present in cache
-                if (window.cachedMedicineDoses && window.cachedMedicineDoses[value]) {
-                    const row = input.closest('tr');
-                    if (row) {
+                const row = input.closest('tr');
+                if (row) {
+                    // Auto-fill dose
+                    if (window.cachedMedicineDoses && window.cachedMedicineDoses[value]) {
                         const doseInput = row.querySelector('.dose-input');
-                        if (doseInput) {
-                            doseInput.value = window.cachedMedicineDoses[value];
-                        }
+                        if (doseInput) doseInput.value = window.cachedMedicineDoses[value];
+                    }
+                    // Auto-select timing
+                    if (window.cachedMedicineTimings && window.cachedMedicineTimings[value]) {
+                        const timingSelect = row.querySelector('select[name$="_timing[]"]');
+                        if (timingSelect) timingSelect.value = window.cachedMedicineTimings[value];
                     }
                 }
             }
@@ -2191,13 +2192,15 @@
 
             input.addEventListener('blur', () => {
                 const val = input.value.trim();
-                if (window.cachedMedicineDoses && window.cachedMedicineDoses[val]) {
-                    const row = input.closest('tr');
-                    if (row) {
+                const row = input.closest('tr');
+                if (row) {
+                    if (window.cachedMedicineDoses && window.cachedMedicineDoses[val]) {
                         const doseInput = row.querySelector('.dose-input');
-                        if (doseInput && !doseInput.value) {
-                            doseInput.value = window.cachedMedicineDoses[val];
-                        }
+                        if (doseInput && !doseInput.value) doseInput.value = window.cachedMedicineDoses[val];
+                    }
+                    if (window.cachedMedicineTimings && window.cachedMedicineTimings[val]) {
+                        const timingSelect = row.querySelector('select[name$="_timing[]"]');
+                        if (timingSelect && !timingSelect.value) timingSelect.value = window.cachedMedicineTimings[val];
                     }
                 }
             });

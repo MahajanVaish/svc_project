@@ -123,6 +123,8 @@
                                 </th>
                                 <th class="text-center pe-4 text-uppercase small border-0" style="letter-spacing: 1px;">
                                     Ledger</th>
+                                <th class="text-center pe-4 text-uppercase small border-0" style="letter-spacing: 1px;">
+                                    Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -228,6 +230,16 @@
                                             <i class="fas fa-id-badge fs-5"></i>
                                         </a>
                                     </td>
+                                    <td class="text-center pe-4">
+                                        <button class="btn-delete-txn"
+                                            title="Delete all transactions & invoice for this patient"
+                                            data-patient-id="{{ $row->patient_id }}"
+                                            data-invoice-id="{{ $row->invoice_id ?? '' }}"
+                                            data-name="{{ $row->patient->patient_name ?? 'this patient' }}"
+                                            onclick="confirmDeleteTransaction(this)">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
@@ -315,6 +327,36 @@
             box-shadow: 0 4px 12px rgba(8, 104, 56, 0.2);
         }
 
+        .btn-delete-txn {
+            width: 38px;
+            height: 38px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            color: #dc2626;
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            border-radius: 12px;
+            transition: all 0.25s ease;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-delete-txn:hover {
+            background: #dc2626;
+            color: #fff;
+            transform: scale(1.08);
+            box-shadow: 0 4px 10px rgba(220,38,38,0.25);
+        }
+        html.dark .btn-delete-txn {
+            background: #2d3748;
+            border-color: rgba(220,38,38,0.4);
+            color: #f87171;
+        }
+        html.dark .btn-delete-txn:hover {
+            background: #dc2626;
+            color: #fff;
+        }
+
         /* Dark Mode Overrides */
         html.dark .card {
             background: #1a222c !important;
@@ -372,4 +414,54 @@
             color: #000;
         }
     </style>
+
+    <script>
+    function confirmDeleteTransaction(btn) {
+        const name      = btn.dataset.name;
+        const patientId = btn.dataset.patientId;
+        const invoiceId = btn.dataset.invoiceId;
+
+        Swal.fire({
+            title: 'Delete Transactions?',
+            html: `Delete all transactions & invoice for <strong>${name}</strong>?<br>
+                   <small class="text-danger">This cannot be undone.</small>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="fas fa-trash-alt me-1"></i> Yes, Delete',
+            cancelButtonText: 'Cancel'
+        }).then((result) => {
+            if (!result.isConfirmed) return;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+            fetch('{{ route("transaction.delete") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ patient_id: patientId, invoice_id: invoiceId })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire('Deleted!', data.message, 'success').then(() => location.reload());
+                } else {
+                    Swal.fire('Error!', data.message || 'Something went wrong', 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                }
+            })
+            .catch(() => {
+                Swal.fire('Error!', 'Network error', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+            });
+        });
+    }
+    </script>
 @endsection

@@ -195,28 +195,51 @@ class SVCController extends Controller
     public function getMedicineSuggestions()
     {
         try {
-            // Fetch medicines with their most frequent doses
-            $results = \App\Models\PatientTreatment::select('medicine', 'dose', \DB::raw('COUNT(*) as frequency'))
+            // Step 1: Get most frequent dose per medicine (regardless of timing)
+            $doseResults = \App\Models\PatientTreatment::select(
+                    'medicine',
+                    'dose',
+                    \DB::raw('COUNT(*) as frequency')
+                )
                 ->whereNotNull('medicine')
                 ->where('medicine', '!=', '')
                 ->groupBy('medicine', 'dose')
                 ->orderBy('frequency', 'desc')
                 ->get();
 
-            $medicines = [];
-            $medicineDoses = (object) []; // Use stdClass object so it serializes as a JSON object, not empty array
+            // Step 2: Get most frequent NON-EMPTY timing per medicine
+            $timingResults = \App\Models\PatientTreatment::select(
+                    'medicine',
+                    'timing',
+                    \DB::raw('COUNT(*) as frequency')
+                )
+                ->whereNotNull('medicine')
+                ->where('medicine', '!=', '')
+                ->whereNotNull('timing')
+                ->where('timing', '!=', '')
+                ->groupBy('medicine', 'timing')
+                ->orderBy('frequency', 'desc')
+                ->get()
+                ->groupBy('medicine')
+                ->map(fn($rows) => $rows->first()->timing); // most frequent timing per medicine
 
-            foreach ($results as $row) {
-                $medName = trim($row->medicine);
-                $doseVal = trim($row->dose);
+            $medicines       = [];
+            $medicineDoses   = (object) [];
+            $medicineTimings = (object) [];
+
+            foreach ($doseResults as $row) {
+                $medName  = trim($row->medicine);
+                $doseVal  = trim($row->dose ?? '');
 
                 if (!in_array($medName, $medicines)) {
-                    $medicines[] = $medName;
+                    $medicines[]             = $medName;
                     $medicineDoses->$medName = $doseVal;
+                    // Attach timing only if available
+                    $medicineTimings->$medName = $timingResults->get($medName, '');
                 }
             }
 
-            // Fetch all unique doses from database
+            // All unique doses
             $doses = \App\Models\PatientTreatment::whereNotNull('dose')
                 ->where('dose', '!=', '')
                 ->groupBy('dose')
@@ -224,18 +247,20 @@ class SVCController extends Controller
                 ->toArray();
 
             return response()->json([
-                'success' => true,
-                'medicines' => $medicines,
-                'medicine_doses' => $medicineDoses,
-                'doses' => $doses
+                'success'          => true,
+                'medicines'        => $medicines,
+                'medicine_doses'   => $medicineDoses,
+                'medicine_timings' => $medicineTimings,
+                'doses'            => $doses
             ]);
         } catch (\Exception $e) {
             \Log::error('Error fetching medicine suggestions: ' . $e->getMessage());
             return response()->json([
-                'success' => false,
-                'medicines' => [],
-                'medicine_doses' => (object) [],
-                'doses' => []
+                'success'          => false,
+                'medicines'        => [],
+                'medicine_doses'   => (object) [],
+                'medicine_timings' => (object) [],
+                'doses'            => []
             ]);
         }
     }
@@ -2523,22 +2548,36 @@ class SVCController extends Controller
                         ];
                     }
 
-                    $givenPayment = $request->input('given_payment', 0);
-                    $duePayment = $request->input('due_payment', $totalPayment - $givenPayment);
+                    $cashPayment   = (float) $request->input('cash_payment', 0);
+                    $gpayPayment   = (float) $request->input('gp_payment', 0);
+                    $chequePayment = (float) $request->input('cheque_payment', 0);
+                    $givenPayment  = $cashPayment + $gpayPayment + $chequePayment;
+
+                    // Fallback: if no split payments, use given_payment field directly
+                    if ($givenPayment <= 0) {
+                        $givenPayment = (float) $request->input('given_payment', 0);
+                    }
+
+                    $discountPayment = (float) $request->input('discount_payment', 0);
+                    $duePayment = max(0, (float) $totalPayment - $discountPayment - $givenPayment);
 
                     $invoice = Invoice::create([
-                        'branch_id' => $branchId,
-                        'patient_id' => $patient->id,
-                        'invoice_no' => $finalInvoiceNo,
-                        'invoice_date' => now()->format('Y-m-d'),
-                        'address' => $request->address ?? $patient->address,
-                        'phone' => $patient->getMeta('phone'),
-                        'price' => $totalPayment,
-                        'total_payment' => $totalPayment,
-                        'given_payment' => $givenPayment,
-                        'due_payment' => $duePayment,
-                        'invoice_file' => $invoiceFile,
-                        'charges_data' => $chargesData,
+                        'branch_id'      => $branchId,
+                        'patient_id'     => $patient->id,
+                        'invoice_no'     => $finalInvoiceNo,
+                        'invoice_date'   => now()->format('Y-m-d'),
+                        'address'        => $request->address ?? $patient->address ?? '',
+                        'phone'          => $patient->getMeta('phone') ?? '',
+                        'price'          => $totalPayment,
+                        'total_payment'  => $totalPayment,
+                        'discount'       => $discountPayment,
+                        'given_payment'  => $givenPayment,
+                        'due_payment'    => $duePayment,
+                        'cash_payment'   => $cashPayment,
+                        'gpay_payment'   => $gpayPayment,
+                        'cheque_payment' => $chequePayment,
+                        'invoice_file'   => $invoiceFile,
+                        'charges_data'   => $chargesData,
                     ]);
 
                     // Determine branch prefix
@@ -2576,14 +2615,10 @@ class SVCController extends Controller
                 }
             }
 
-            // Redirect back with both date and time
+            // Redirect to SVC patients list after successful save
             return redirect()
-                ->route('add.follow.up', [
-                    'patient_id' => $patient->patient_id,
-                    'date' => $request->followup_date,
-                    'time' => $request->followups_time
-                ])
-                ->with('success', 'Follow-up data saved successfully.');
+                ->route('svc-patient')
+                ->with('success', 'Follow-up data saved successfully for ' . $patient->patient_name . '.');
         } catch (\Exception $e) {
             return redirect()
                 ->back()

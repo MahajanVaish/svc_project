@@ -188,6 +188,7 @@ public function dietChartSearch(Request $request)
             ->get(['id', 'name']);
 
         $joinedPrograms = \App\Models\ManageProgram::where('delete_status', 0)
+            ->where('branch', 'FNF')
             ->orderBy('program_name', 'asc')
             ->get();
 
@@ -654,6 +655,38 @@ public function store(Request $request)
             ->orderByDesc('id')
             ->first();
 
+        // If this existing Opt has program data or a payment (e.g. 200/- registration fee),
+        // and we are transitioning the status to Joined/Diet Chart/Active,
+        // we should NOT overwrite it. Instead, create a new Opt record to preserve the history/invoice.
+        if ($opt) {
+            $hasPrograms = false;
+            $programsArray = json_decode($opt->getMetaValue('programs_array') ?? '[]', true);
+            if (!empty($programsArray)) {
+                $hasPrograms = true;
+            }
+            if (!$hasPrograms && !empty($opt->getMetaValue('selected_program'))) {
+                $hasPrograms = true;
+            }
+
+            $totalPayment = (float) $opt->getMetaValue('total_payment');
+            $givenPayment = (float) $opt->getMetaValue('given_payment');
+
+            if ($hasPrograms || $totalPayment > 0 || $givenPayment > 0) {
+                $oldInquiry = AccInquiry::where('patient_id', $patientId)->first();
+                $oldStatus = $oldInquiry ? $oldInquiry->user_status : 'Pending';
+
+                $selectedStatuses = $request->user_status ?? [];
+                $newStatus = !empty($selectedStatuses) ? $selectedStatuses[0] : 'Pending';
+
+                $wasPending = in_array($oldStatus, ['Pending', 'pending', 'Inquiry', 'inquiry', 'InBody', 'inbody']);
+                $isNowJoined = in_array($newStatus, ['Joined', 'Diet Chart', 'Active']);
+
+                if ($wasPending && $isNowJoined) {
+                    $opt = null; // Forces creation of a new Opt record
+                }
+            }
+        }
+
         if (! $opt) {
             $opt = Opt::create([
                 'patient_id'   => $patientId,
@@ -702,6 +735,10 @@ public function store(Request $request)
                     $opt->setMetaValue("session_{$index}", $session);
                     $opt->setMetaValue("months_{$index}", $months);
                     
+                    // Preserve existing payment_date if this is an edit (don't overwrite with today)
+                    $existingPrograms = json_decode($opt->getMetaValue('programs_array') ?? '[]', true);
+                    $existingDate = $existingPrograms[$index]['payment_date'] ?? date('Y-m-d');
+
                     $allPrograms[] = [
                         'program' => $progName,
                         'session' => $session,
@@ -711,9 +748,9 @@ public function store(Request $request)
                         'gpay_payment' => $request->gpay_payment ?? '',
                         'cheque_payment' => $request->cheque_payment ?? '',
                         'payment_method' => $request->payment_method ?? 'Cash',
-                        'payment_date' => date('Y-m-d'),
+                        'payment_date' => $existingDate,
                         'index' => $index,
-                        'created_at' => now()->format('Y-m-d H:i:s')
+                        'created_at' => $existingPrograms[$index]['created_at'] ?? now()->format('Y-m-d H:i:s')
                     ];
                     
                     if ($index === 0) {
@@ -739,15 +776,38 @@ public function store(Request $request)
 
     public function destroy($id)
     {
+        $inquiry = AccInquiry::withoutGlobalScopes()->find($id);
+        if (!$inquiry) {
+            if (request()->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Record not found'], 404);
+            }
+            return redirect()->back()->with('error', 'Record not found');
+        }
+
+        // Cascade: delete invoices + transactions
+        $invoices = \App\Models\Invoice::where('patient_id', $inquiry->id)->get();
+        foreach ($invoices as $invoice) {
+            \App\Models\PatientTransaction::where('invoice_id', $invoice->id)->delete();
+            $invoice->delete();
+        }
+        // Also delete any transactions linked directly by patient_id
+        \App\Models\PatientTransaction::where('patient_id', $inquiry->id)->delete();
+
         $delete = AccInquiry::where('id', $id)->update([
             'delete_status' => '1',
             'delete_by' => auth()->id(),
         ]);
 
         if ($delete) {
+            if (request()->wantsJson()) {
+                return response()->json(['success' => true, 'message' => 'Deleted successfully']);
+            }
             return redirect()->back()->with('success', 'Inquiry deleted successfully');
         }
 
+        if (request()->wantsJson()) {
+            return response()->json(['success' => false, 'message' => 'Failed to delete']);
+        }
         return redirect()->back()->with('error', 'Failed to delete inquiry');
     }
 
@@ -870,8 +930,9 @@ public function store(Request $request)
                 ->where('delete_status', '0')
                 ->firstOrFail();
 
-            // Fetch available programs for the program selection dropdowns
+            // Fetch available programs for the program selection dropdowns (FNF branch only)
             $available_programs = \App\Models\ManageProgram::where('delete_status', 0)
+                ->where('branch', 'FNF')
                 ->orderBy('program_name', 'asc')
                 ->get();
 
@@ -1281,6 +1342,26 @@ public function store(Request $request)
                           ->orWhere('delete_status', '0');
                     })
                     ->first();
+
+                // If this existing Opt has program data or a payment (e.g. 200/- registration fee),
+                // we should NOT overwrite it. Instead, create a new Opt record to preserve the history/invoice.
+                if ($opt) {
+                    $hasPrograms = false;
+                    $programsArray = json_decode($opt->getMetaValue('programs_array') ?? '[]', true);
+                    if (!empty($programsArray)) {
+                        $hasPrograms = true;
+                    }
+                    if (!$hasPrograms && !empty($opt->getMetaValue('selected_program'))) {
+                        $hasPrograms = true;
+                    }
+
+                    $totalPayment = (float) $opt->getMetaValue('total_payment');
+                    $givenPayment = (float) $opt->getMetaValue('given_payment');
+
+                    if ($hasPrograms || $totalPayment > 0 || $givenPayment > 0) {
+                        $opt = null; // Forces creation of a new Opt record
+                    }
+                }
             }
 
             if ($opt) {
@@ -2888,8 +2969,11 @@ private function getAllImages($optId, $type = 'before')
         }
 
         if ($invoice) {
-            $invoice->update($invoiceData);
-            \Log::info("syncDietInvoiceAndTransactions: Invoice updated, invoice_no: {$invoice->invoice_no}");
+            // Do NOT update invoice_date on edit — preserve the original date
+            $updateData = $invoiceData;
+            unset($updateData['invoice_date']);
+            $invoice->update($updateData);
+            \Log::info("syncDietInvoiceAndTransactions: Invoice updated (date preserved), invoice_no: {$invoice->invoice_no}");
         } else {
             $invoice = \App\Models\Invoice::create($invoiceData);
             \Log::info("syncDietInvoiceAndTransactions: Invoice created, invoice_no: {$invoice->invoice_no}");

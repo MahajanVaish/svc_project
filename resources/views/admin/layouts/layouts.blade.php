@@ -273,7 +273,7 @@
             text-decoration: none;
             font-size: 0.75rem;
             font-weight: 500;
-            transition: none;
+            transition: color 0.15s;
             padding: 0.35rem 0.5rem;
             border-radius: 0.4rem;
             display: flex;
@@ -290,7 +290,7 @@
         .nav-links a.active {
             color: var(--accent-solid);
             background-color: transparent;
-            font-weight: 600;
+            font-weight: 500;
         }
 
 
@@ -1659,9 +1659,7 @@
                     Shree Vallabh Clinic
                 @endauth
             </div>
-            <button id="layoutToggleBtn" class="layout-toggle-btn d-none d-lg-flex" title="Toggle Sidebar/Navbar">
-                <i class="fas fa-columns"></i>
-            </button>
+            <!-- Sidebar toggle button removed per user request -->
             <button class="mobile-menu-btn d-lg-none" id="mobileMenuToggle">
                 <i class="fas fa-bars"></i>
             </button>
@@ -1748,20 +1746,11 @@
                                 <i class="fas fa-chart-pie"></i>
                                 Progress Report
                             </a>
-                            <a href="{{ route('appointment.index') }}"
-                                class="{{ request()->is('admin/appointments*') ? 'active' : '' }}">
-                                <i class="fas fa-calendar-check"></i>
-                                Appointments
-                            </a>
+
                         @else
                             <a href="{{ route('dashboard') }}" class="{{ request()->is('dashboard*') ? 'active' : '' }}">
                                 <i class="fas fa-home"></i>
                                 Dashboard
-                            </a>
-                            <a href="{{ route('appointment.index') }}"
-                                class="{{ request()->is('admin/appointments*') ? 'active' : '' }}">
-                                <i class="fas fa-calendar-check"></i>
-                                Appointments
                             </a>
                         @endif
 
@@ -1989,11 +1978,6 @@
                             Progress Report
                         </a>
 
-                        <a href="{{ route('appointment.index') }}"
-                            class="{{ request()->is('admin/appointments*') ? 'active' : '' }}">
-                            <i class="fas fa-calendar-check"></i>
-                            Appointments
-                        </a>
 
                         @if ($isSuperadmin)
                             <div class="dropdown">
@@ -2052,6 +2036,26 @@
                     </div>
                 @endif
                 @if(!$isDoctor)
+                    <div class="dropdown">
+                        <a href="#"
+                            class="{{ request()->is('admin/appointments*') || request()->is('patient-analytics*') ? 'active' : '' }}">
+                            <i class="fas fa-rocket"></i>
+                            Insights &amp; Tools
+                        </a>
+                        <div class="dropdown-content">
+                            <a href="{{ route('appointment.index') }}"
+                                class="{{ request()->is('admin/appointments*') ? 'active' : '' }}">
+                                <i class="fas fa-calendar-check"></i>
+                                Appointments
+                            </a>
+                            <a href="{{ route('patient.analytics') }}"
+                                class="{{ request()->is('patient-analytics*') ? 'active' : '' }}">
+                                <i class="fas fa-chart-bar"></i>
+                                Analytics
+                            </a>
+                        </div>
+                    </div>
+
                     <a href="{{ route('add.invoice') }}" class="{{ request()->is('add-invoice*') ? 'active' : '' }}">
                         <i class="fas fa-file-invoice"></i>
                         Invoice
@@ -2315,30 +2319,7 @@
         // Init
         applyTheme(localStorage.getItem('theme') || 'system');
 
-        // Layout Toggle Logic
-        const layoutToggleBtn = document.getElementById('layoutToggleBtn');
-        const body = document.body;
-
-        function updateLayout(isSidebar) {
-            if (isSidebar) {
-                body.classList.add('layout-sidebar');
-            } else {
-                body.classList.remove('layout-sidebar');
-            }
-            localStorage.setItem('preferred-layout', isSidebar ? 'sidebar' : 'navbar');
-        }
-
-        layoutToggleBtn.addEventListener('click', () => {
-            const isSidebar = !body.classList.contains('layout-sidebar');
-            updateLayout(isSidebar);
-        });
-
-
-        // Init Layout
-        const preferredLayout = localStorage.getItem('preferred-layout');
-        if (preferredLayout === 'sidebar') {
-            updateLayout(true);
-        }
+        // Layout logic removed per user request to only have navbar
     });
 </script>
 <script>

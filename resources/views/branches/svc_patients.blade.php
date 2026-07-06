@@ -462,10 +462,15 @@
     <div class="search-section">
         <form method="GET" action="{{ route('svc-patient') }}" id="searchForm">
             <div class="dual-search-container">
-                <div style="flex: 1;">
-                    <!-- <label class="search-label"> Search</label> -->
-                    <input type="text" name="global_search" class="search-input" placeholder="Search by name, ID, or diagnosis..."
-                        value="{{ request('global_search') }}" id="globalSearchInput">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <input type="text" name="global_search" class="search-input" 
+                        placeholder="Search by name, ID, diagnosis, address, age..."
+                        value="{{ request('global_search') }}" id="globalSearchInput"
+                        autocomplete="off" style="width: 350px;">
+                    <button type="button" id="clearSearchBtn" title="Clear search"
+                        style="background:#e9ecef; border:1px solid #ced4da; border-radius:4px; cursor:pointer; color:#555; font-size:14px; padding:6px 10px; display:{{ request('global_search') ? 'flex' : 'none' }}; align-items:center; gap:4px; flex-shrink:0;">
+                        <i class="bi bi-x-lg"></i> Clear
+                    </button>
                 </div>
                 <div style="width: 150px;">
                     <label class="search-label">Show</label>
@@ -483,6 +488,106 @@
             </div>
         </form>
     </div>
+
+    {{-- Live search results container --}}
+    <div id="liveTableWrapper">
+        {{-- Will be replaced by AJAX results, initially empty --}}
+    </div>
+
+    <script>
+    (function() {
+        const searchInput   = document.getElementById('globalSearchInput');
+        const clearBtn      = document.getElementById('clearSearchBtn');
+        const tableWrapper  = document.querySelector('.table-responsive');
+        const paginationDiv = document.querySelector('.pagination');
+        const liveWrapper   = document.getElementById('liveTableWrapper');
+        let debounceTimer   = null;
+
+        if (!searchInput) return;
+
+        // Show/hide clear button based on input value
+        function toggleClearBtn() {
+            if (clearBtn) {
+                clearBtn.style.display = searchInput.value.trim() ? 'flex' : 'none';
+            }
+        }
+
+        // Clear search - reset table and reload page without query
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                searchInput.value = '';
+                toggleClearBtn();
+                searchInput.focus();
+                // Redirect to clean URL (removes global_search param)
+                window.location.href = '{{ route('svc-patient') }}' + 
+                    ({{ request('per_page') ? 'true' : 'false' }} ? '?per_page={{ request('per_page', 10) }}' : '');
+            });
+        }
+
+        searchInput.addEventListener('input', function() {
+            toggleClearBtn();
+            const query = this.value.trim();
+            clearTimeout(debounceTimer);
+
+            // If cleared, restore original table
+            if (query.length === 0) {
+                if (tableWrapper)  tableWrapper.style.display  = '';
+                if (paginationDiv) paginationDiv.style.display = '';
+                liveWrapper.innerHTML = '';
+                return;
+            }
+
+            if (query.length < 2) return;
+
+            debounceTimer = setTimeout(() => {
+                // Show loading indicator in table body
+                const tbody = tableWrapper ? tableWrapper.querySelector('tbody') : null;
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td colspan="10" class="text-center py-4">
+                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>Searching...
+                    </td></tr>`;
+                }
+                if (paginationDiv) paginationDiv.style.display = 'none';
+
+                fetch(`{{ route('svc-patient') }}?global_search=${encodeURIComponent(query)}&per_page={{ request('per_page', 10) }}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }
+                })
+                .then(r => r.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc    = parser.parseFromString(html, 'text/html');
+
+                    // Replace tbody
+                    const newTbody = doc.querySelector('.patient-table tbody');
+                    if (tbody && newTbody) {
+                        tbody.innerHTML = newTbody.innerHTML;
+                    }
+
+                    // Replace pagination info
+                    const newPagination = doc.querySelector('.pagination');
+                    if (paginationDiv) {
+                        if (newPagination) {
+                            paginationDiv.outerHTML = newPagination.outerHTML;
+                        } else {
+                            paginationDiv.style.display = 'none';
+                        }
+                    }
+                })
+                .catch(() => {
+                    if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="text-center text-danger py-3">Search failed. Use the Search button.</td></tr>';
+                });
+            }, 400);
+        });
+
+        // On Enter key - do normal form submit
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('searchForm').submit();
+            }
+        });
+    })();
+    </script>
 
     <div class="table-responsive">
         <table class="patient-table">
@@ -561,12 +666,21 @@
                                     <i class="bi bi-hospital"></i>
                                 </button>
                                 @endif
-                                <a href="{{ route('svc.profile', $patient->id) }}" class="action-btn btn-profile-square" title="View Profile">
+                                <!-- <a href="{{ route('svc.profile', $patient->id) }}" class="action-btn btn-profile-square" title="View Profile">
                                     <i class="fas fa-address-card"></i>
-                                </a>
+                                </a> -->
                                 <a href="{{ route('edit.svc.inquiry', $patient->id) }}" class="action-btn btn-profile-square" title="Edit Inquiry" style="border-color: #007bff; color: #007bff !important;">
                                     <i class="fas fa-edit"></i>
                                 </a>
+                                <form action="{{ route('delete-inquiry', $patient->id) }}" method="POST" class="d-inline delete-svc-form">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="button" class="action-btn btn-delete-svc" title="Delete Patient"
+                                        style="border-color:#dc3545;color:#dc3545;"
+                                        onclick="confirmDeleteSvc(this, '{{ addslashes($patient->patient_name) }}', '{{ $patient->patient_id }}')">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </form>
                             </div>
                         </td>
                     </tr>
@@ -817,6 +931,23 @@
             if (!badge) return;
             const count = rows.length;
             badge.textContent = count + (count === 1 ? ' medicine' : ' medicines');
+        }
+
+        function confirmDeleteSvc(btn, name, patientId) {
+            Swal.fire({
+                title: 'Delete Patient?',
+                html: `Are you sure you want to delete <strong>${name}</strong> (${patientId})?<br><small class="text-danger">This will permanently delete the patient and all related data.</small>`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: '<i class="fas fa-trash-alt me-1"></i> Yes, Delete',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    btn.closest('form').submit();
+                }
+            });
         }
     </script>
 @endsection

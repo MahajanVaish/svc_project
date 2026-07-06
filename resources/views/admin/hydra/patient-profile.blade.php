@@ -695,6 +695,33 @@
                                                     </p>
                                                 </div>
                                             </div>
+                                            <hr class="my-2">
+                                            <!-- Client Type -->
+                                            <div class="row">
+                                                <div class="col-md-3">
+                                                    <p class="mb-0 profile_txt_color">Client Type</p>
+                                                </div>
+                                                <div class="col-md-9">
+                                                    <p class="text-muted mb-0">{{ ucfirst($inquiry->client_type ?? 'New') }}</p>
+                                                </div>
+                                            </div>
+                                            <hr class="my-2">
+                                            <!-- Programs Detail -->
+                                            <div class="row">
+                                                <div class="col-md-3">
+                                                    <p class="mb-0 profile_txt_color">Programs Detail</p>
+                                                </div>
+                                                <div class="col-md-9">
+                                                    <p class="text-muted mb-0">
+                                                        @php
+                                                            $hydraPrograms = is_array($inquiry->program_name)
+                                                                ? $inquiry->program_name
+                                                                : (json_decode($inquiry->program_name, true) ?? [$inquiry->program_name]);
+                                                        @endphp
+                                                        {{ !empty(array_filter((array)$hydraPrograms)) ? implode(', ', array_filter((array)$hydraPrograms)) : '-' }}
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

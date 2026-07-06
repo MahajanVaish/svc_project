@@ -117,6 +117,8 @@ class LHRController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'patient_name' => 'required|string|max:255',
+            'mobile_no' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
             'inquiry_date' => 'required|date',
             'address' => 'nullable|string|max:500',
 
@@ -268,6 +270,8 @@ class LHRController extends Controller
 
                 // Patient Info
                 'patient_name' => $request->patient_name,
+                'mobile_no' => $request->mobile_no,
+                'email' => $request->email,
                 'inquiry_date' => $request->inquiry_date,
                 'address' => $request->address,
 
@@ -444,6 +448,8 @@ class LHRController extends Controller
         $rules = [
             // Patient Information
             'patient_name' => 'required|string|max:255',
+            'mobile_no' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
             'inquiry_date' => 'required|date',
             'address' => 'nullable|string|max:500',
 

@@ -3289,6 +3289,7 @@
         // Global Medicine & Dose Suggestion Cache
         window.cachedMedicines = [];
         window.cachedMedicineDoses = {};
+        window.cachedMedicineTimings = {};
         window.cachedDoses = [];
 
         function loadMedicineSuggestions() {
@@ -3324,6 +3325,7 @@
                     if (data.success) {
                         window.cachedMedicines = data.medicines || [];
                         window.cachedMedicineDoses = data.medicine_doses || {};
+                        window.cachedMedicineTimings = data.medicine_timings || {};
                         window.cachedDoses = data.doses || [];
 
                         // Initialize medicine autocomplete on all existing medicine inputs
@@ -3372,14 +3374,17 @@
                 dropdown.classList.remove('show');
                 selectedIndex = -1;
 
-                // Auto-fill dose if present in cache
-                if (window.cachedMedicineDoses && window.cachedMedicineDoses[value]) {
-                    const row = input.closest('tr');
-                    if (row) {
+                const row = input.closest('tr');
+                if (row) {
+                    // Auto-fill dose
+                    if (window.cachedMedicineDoses && window.cachedMedicineDoses[value]) {
                         const doseInput = row.querySelector('.dose-input');
-                        if (doseInput) {
-                            doseInput.value = window.cachedMedicineDoses[value];
-                        }
+                        if (doseInput) doseInput.value = window.cachedMedicineDoses[value];
+                    }
+                    // Auto-select timing
+                    if (window.cachedMedicineTimings && window.cachedMedicineTimings[value]) {
+                        const timingSelect = row.querySelector('select[name$="_timing[]"]');
+                        if (timingSelect) timingSelect.value = window.cachedMedicineTimings[value];
                     }
                 }
             }
@@ -3400,12 +3405,18 @@
 
             input.addEventListener('blur', () => {
                 const val = input.value.trim();
-                if (window.cachedMedicineDoses && window.cachedMedicineDoses[val]) {
-                    const row = input.closest('tr');
-                    if (row) {
+                const row = input.closest('tr');
+                if (row) {
+                    if (window.cachedMedicineDoses && window.cachedMedicineDoses[val]) {
                         const doseInput = row.querySelector('.dose-input');
                         if (doseInput && !doseInput.value) {
                             doseInput.value = window.cachedMedicineDoses[val];
+                        }
+                    }
+                    if (window.cachedMedicineTimings && window.cachedMedicineTimings[val]) {
+                        const timingSelect = row.querySelector('select[name$="_timing[]"]');
+                        if (timingSelect && !timingSelect.value) {
+                            timingSelect.value = window.cachedMedicineTimings[val];
                         }
                     }
                 }

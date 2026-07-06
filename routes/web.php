@@ -114,6 +114,7 @@ Route::middleware(['auth'])->group(function () {
     // Finance / Transactions
     Route::get('/patient-transactions', [App\Http\Controllers\Admin\PatientTransactionController::class, 'index'])->name('transactions.index');
     Route::get('/patient-ledger/{patient_id}/{branch_id}', [App\Http\Controllers\Admin\PatientTransactionController::class, 'ledger'])->name('transactions.ledger');
+    Route::post('/patient-transactions/delete', [App\Http\Controllers\Admin\PatientTransactionController::class, 'deletePatientTransactions'])->name('transaction.delete');
     Route::get('/get-patient-programs/{id}', [App\Http\Controllers\InvoiceController::class, 'getPatientPrograms'])->name('get.patient.programs');
     // Route::get('/invoice/get-patients', [App\Http\Controllers\InvoiceController::class, 'getPatientsByBranch'])->name('invoice.get.patients');
      Route::post('/invoice/get-patients', [App\Http\Controllers\InvoiceController::class, 'getPatientsByBranch'])->name('invoice.get.patients');
@@ -123,6 +124,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/follow-up-calendar', [CalendarController::class, 'index'])->name('followup.calendar');
     Route::get('/patient-details/{id}', [CalendarController::class, 'getPatientDetails'])->name('patient.details');
     Route::get('/inquiry-details/{id}', [CalendarController::class, 'getInquiryDetails'])->name('inquiry.details');
+
+    Route::get('/patient-analytics', [PatientController::class, 'analytics'])->name('patient.analytics');
+    Route::post('/patient-analytics/data', [PatientController::class, 'analyticsData'])->name('patient.analytics.data');
 
     // Patient filtering
     Route::post('/get-filtered-patients', [PatientController::class, 'getFilteredPatients'])->name('get.filtered.patients');

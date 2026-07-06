@@ -443,6 +443,18 @@
                             </div>
                             <div class="pro_filed">
                                 <div class="form">
+                                    <label for="mobile_no">Mobile Number</label>
+                                    <input type="text" id="mobile_no" name="mobile_no"
+                                        placeholder="Enter mobile number" value="{{ old('mobile_no') }}">
+                                </div>
+                                <div class="form">
+                                    <label for="email">Email Address</label>
+                                    <input type="email" id="email" name="email"
+                                        placeholder="Enter email address" value="{{ old('email') }}">
+                                </div>
+                            </div>
+                            <div class="pro_filed">
+                                <div class="form">
                                     <label for="address">Address</label>
                                     <textarea id="address" name="address" rows="1"
                                         placeholder="Enter complete address">{{ old('address') }}</textarea>

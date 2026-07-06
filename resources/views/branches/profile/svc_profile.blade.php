@@ -1205,6 +1205,13 @@
                     <i class="bi bi-hospital"></i> Indoor Treatment
                 </button>
                 @endif
+
+                <button type="button" class="follow-up-btn" id="addIndoorPatientBtn"
+                    onclick="openProfileIndoorModal()"
+                    style="background-color: #17a2b8; border-color: #17a2b8; margin-right: 10px;">
+                    <i class="bi bi-hospital-fill"></i> Add Indoor Patient
+                </button>
+
                 <a href="{{ route('add.follow.up', ['patient_id' => $patient->patient_id]) }}" class="follow-up-btn">Add
                     Follow Up</a>
             </div>
@@ -1310,10 +1317,27 @@
                         <hr class="my-2">
                         <div class="row">
                             <div class="col-sm-3">
-                                <p class="mb-0 profile_txt_color">Patient Status</p>
+                                <p class="mb-0 profile_txt_color">Client Type</p>
                             </div>
                             <div class="col-sm-9">
-                                <p class="text-muted mb-0">{{ $patient->getMeta('pt_status') ?? '' }}</p>
+                                <p class="text-muted mb-0">{{ ucfirst($patient->getMeta('client_type') ?? 'New') }}</p>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row">
+                            <div class="col-sm-3">
+                                <p class="mb-0 profile_txt_color">Programs Detail</p>
+                            </div>
+                            <div class="col-sm-9">
+                                <p class="text-muted mb-0">
+                                    @php
+                                        $svcPrograms = $patient->getMeta('program_name');
+                                        $svcPrograms = is_array($svcPrograms)
+                                            ? $svcPrograms
+                                            : (json_decode($svcPrograms, true) ?? [$svcPrograms]);
+                                    @endphp
+                                    {{ !empty(array_filter((array)$svcPrograms)) ? implode(', ', array_filter((array)$svcPrograms)) : '-' }}
+                                </p>
                             </div>
                         </div>
                         <hr class="my-2">
@@ -2269,9 +2293,25 @@
                                                 <span class="fw-bold text-info">₹{{ $invoice ? number_format($invoice->discount, 2) : '0.00' }}</span>
                                             </div>
                                             <hr>
+                                            @php
+                                                $isFoc = !empty($meta['foc']) && strtolower($meta['foc']) === 'on';
+                                                $isFocInquiry = !empty($meta['inquiry_foc']) && $meta['inquiry_foc'] == '1';
+                                                $isFreeCharge = $isFoc || $isFocInquiry;
+                                                $dueDisplay = $isFreeCharge ? 0 : ($invoice ? $invoice->due_payment : 0);
+                                            @endphp
+                                            @if($isFreeCharge)
+                                                <div class="d-flex justify-content-between mb-2">
+                                                    <span class="text-success fw-bold">
+                                                        <i class="fas fa-tag me-1"></i> FOC (Free of Charge)
+                                                    </span>
+                                                    <span class="badge bg-success">Free</span>
+                                                </div>
+                                            @endif
                                             <div class="d-flex justify-content-between">
                                                 <span class="fw-bold">Due Balance:</span>
-                                                <span class="fw-bold text-danger">₹{{ $invoice ? number_format($invoice->due_payment, 2) : '0.00' }}</span>
+                                                <span class="fw-bold {{ $dueDisplay > 0 ? 'text-danger' : 'text-success' }}">
+                                                    ₹{{ number_format($dueDisplay, 2) }}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -2364,7 +2404,8 @@
                                     $allIndoorTreatments->push(array_merge($treatment, [
                                         'display_date' => !empty($treatment['date']) ? \Carbon\Carbon::parse($treatment['date'])->format('d/m/Y') : ($patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->format('d/m/Y') : ''),
                                         'display_time' => !empty($treatment['time']) ? \Carbon\Carbon::parse($treatment['time'])->format('h:i A') : '',
-                                        'sort_date' => !empty($treatment['date']) ? \Carbon\Carbon::parse($treatment['date'])->timestamp : ($patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->timestamp : 0),
+                                        'raw_time'     => !empty($treatment['time']) ? \Carbon\Carbon::parse($treatment['time'])->format('H:i') : '00:00',
+                                        'sort_date'    => !empty($treatment['date']) ? \Carbon\Carbon::parse($treatment['date'])->timestamp : ($patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->timestamp : 0),
                                         'type' => 'initial'
                                     ]));
                                 }
@@ -2374,63 +2415,216 @@
                                         $allIndoorTreatments->push(array_merge($treatment->toArray(), [
                                             'display_date' => !empty($treatment->date) ? \Carbon\Carbon::parse($treatment->date)->format('d/m/Y') : ($followUp->followup_date ? \Carbon\Carbon::parse($followUp->followup_date)->format('d/m/Y') : ''),
                                             'display_time' => !empty($treatment->time) ? \Carbon\Carbon::parse($treatment->time)->format('h:i A') : '',
-                                            'sort_date' => !empty($treatment->date) ? \Carbon\Carbon::parse($treatment->date)->timestamp : ($followUp->followup_date ? \Carbon\Carbon::parse($followUp->followup_date)->timestamp : 0),
+                                            'raw_time'     => !empty($treatment->time) ? \Carbon\Carbon::parse($treatment->time)->format('H:i') : '00:00',
+                                            'sort_date'    => !empty($treatment->date) ? \Carbon\Carbon::parse($treatment->date)->timestamp : ($followUp->followup_date ? \Carbon\Carbon::parse($followUp->followup_date)->timestamp : 0),
                                             'type' => 'followup'
                                         ]));
                                     }
                                 }
 
-                                $groupedIndoor = $allIndoorTreatments->groupBy('display_date');
+                                // Group by date, then sub-group by time slot label
+                                $groupedIndoor  = $allIndoorTreatments->groupBy('display_date');
                                 $currentIndoorPage = request()->get('indoor_page', 1);
-                                $indoorPerPage = 5;
-                                $indoorChunks = $groupedIndoor->chunk($indoorPerPage);
+                                $indoorPerPage  = 5;
+                                $indoorChunks   = $groupedIndoor->chunk($indoorPerPage);
                                 $currentIndoorChunk = $indoorChunks[$currentIndoorPage - 1] ?? collect();
-                                $totalIndoorPages = count($indoorChunks);
+                                $totalIndoorPages   = count($indoorChunks);
+
+                                // Helper: classify time into session
+                                $getSession = function(string $raw): array {
+                                    $h = (int) explode(':', $raw)[0];
+                                    if ($h >= 5  && $h < 12) return ['label' => '🌅 Morning',   'color' => '#fff8e1', 'border' => '#f59e0b', 'text' => '#92400e', 'icon' => '🌅'];
+                                    if ($h >= 12 && $h < 17) return ['label' => '☀️ Afternoon', 'color' => '#e8f5e9', 'border' => '#16a34a', 'text' => '#14532d', 'icon' => '☀️'];
+                                    if ($h >= 17 && $h < 21) return ['label' => '🌆 Evening',   'color' => '#fce7f3', 'border' => '#db2777', 'text' => '#831843', 'icon' => '🌆'];
+                                    return                           ['label' => '🌙 Night',     'color' => '#ede9fe', 'border' => '#7c3aed', 'text' => '#4c1d95', 'icon' => '🌙'];
+                                };
                             @endphp
 
+                            {{-- ─── Custom styles for this section ─── --}}
+                            <style>
+                                .indoor-date-card {
+                                    border: 2px solid #006637;
+                                    border-radius: 12px;
+                                    margin-bottom: 20px;
+                                    overflow: hidden;
+                                    box-shadow: 0 3px 10px rgba(0,102,55,.1);
+                                }
+                                .indoor-date-header {
+                                    background: #006637;
+                                    color: #fff;
+                                    padding: 10px 18px;
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 10px;
+                                    font-weight: 700;
+                                    font-size: 14px;
+                                    letter-spacing: .3px;
+                                }
+                                .indoor-date-header .date-badge {
+                                    background: rgba(255,255,255,.2);
+                                    border-radius: 20px;
+                                    padding: 2px 12px;
+                                    font-size: 13px;
+                                }
+                                .indoor-date-header .count-pill {
+                                    margin-left: auto;
+                                    background: rgba(255,255,255,.15);
+                                    border-radius: 20px;
+                                    padding: 2px 10px;
+                                    font-size: 12px;
+                                }
+
+                                /* Session band */
+                                .session-band {
+                                    border-left: 5px solid;
+                                    margin: 0 14px 0 0;
+                                }
+                                .session-header {
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 8px;
+                                    padding: 8px 14px;
+                                    font-weight: 700;
+                                    font-size: 13px;
+                                    border-bottom: 1px solid rgba(0,0,0,.06);
+                                }
+                                .session-time-pill {
+                                    margin-left: auto;
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    padding: 2px 10px;
+                                    border-radius: 20px;
+                                    background: rgba(0,0,0,.06);
+                                }
+
+                                /* Medicine row inside session */
+                                .indoor-med-row {
+                                    display: grid;
+                                    grid-template-columns: 2.5fr 1fr 1fr 2fr;
+                                    gap: 0;
+                                    border-bottom: 1px solid #f0f0f0;
+                                    padding: 9px 14px;
+                                    font-size: 13px;
+                                    align-items: center;
+                                    transition: background .15s;
+                                }
+                                .indoor-med-row:last-child { border-bottom: none; }
+                                .indoor-med-row:hover { background: rgba(0,102,55,.03); }
+
+                                .indoor-med-name { font-weight: 600; color: #1e293b; }
+                                .indoor-med-dose { color: #475569; }
+                                .indoor-med-days { color: #64748b; font-size: 12px; }
+                                .indoor-med-note {
+                                    color: #dc2626;
+                                    font-size: 12px;
+                                    background: rgba(220,38,38,.06);
+                                    border-radius: 4px;
+                                    padding: 2px 8px;
+                                    border-left: 3px solid #dc2626;
+                                }
+                                .indoor-med-note:empty { display: none; }
+
+                                /* Column header row */
+                                .indoor-col-header {
+                                    display: grid;
+                                    grid-template-columns: 2.5fr 1fr 1fr 2fr;
+                                    padding: 6px 14px;
+                                    font-size: 11px;
+                                    font-weight: 700;
+                                    text-transform: uppercase;
+                                    letter-spacing: .5px;
+                                    color: #94a3b8;
+                                    border-bottom: 1px solid #e2e8f0;
+                                    background: #fafafa;
+                                }
+
+                                @media(max-width:600px){
+                                    .indoor-med-row,
+                                    .indoor-col-header { grid-template-columns: 1fr 1fr; }
+                                    .indoor-med-days,
+                                    .indoor-col-header span:nth-child(3){ display:none; }
+                                }
+                            </style>
+
                             @if($currentIndoorChunk->count() > 0)
-                                <table class="data-table">
-                                    <thead>
-                                        <tr>
-                                            <th width="5%">#</th>
-                                            <th width="15%">Date</th>
-                                            <th width="80%">Treatments </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @php $sn = ($currentIndoorPage - 1) * $indoorPerPage + 1; @endphp
-                                        @foreach($currentIndoorChunk as $date => $medicines)
-                                            <tr>
-                                                <td>{{ $sn++ }}</td>
-                                                <td>{{ formatValue($date) }}</td>
-                                                <td style="padding: 0;">
-                                                    <table style="width: 100%; margin: 0; border: none;">
-                                                        @foreach($medicines as $m)
-                                                            <tr style="border-bottom: 1px solid #eee;">
-                                                                <td width="10%"
-                                                                    style="border-right: 1px solid #eee; border-top: none; border-left: none;">
-                                                                    {{ formatValue($m['display_time']) }}
-                                                                </td>
-                                                                <td width="35%" style="border-right: 1px solid #eee; border-top: none;">
-                                                                    {{ formatValue($m['medicine']) }}
-                                                                </td>
-                                                                <td width="15%" style="border-right: 1px solid #eee; border-top: none;">
-                                                                    {{ formatValue($m['dose'] ?? '-') }}
-                                                                </td>
-                                                                <td width="10%" style="border-right: 1px solid #eee; border-top: none;">
-                                                                    {{ formatValue($m['days'] ?? '-') }}
-                                                                </td>
-                                                                <td width="30%" style="border-top: none; border-right: none;">
-                                                                    {{ formatValue($m['note']) }}
-                                                                </td>
-                                                            </tr>
-                                                        @endforeach
-                                                    </table>
-                                                </td>
-                                            </tr>
+                                @php $sn = ($currentIndoorPage - 1) * $indoorPerPage + 1; @endphp
+
+                                @foreach($currentIndoorChunk as $date => $medicines)
+                                    @php
+                                        // Sub-group by session (Morning / Afternoon / Evening / Night)
+                                        $sessions = [];
+                                        foreach ($medicines as $m) {
+                                            $sess = $getSession($m['raw_time'] ?? '00:00');
+                                            $key  = $sess['label'];
+                                            if (!isset($sessions[$key])) {
+                                                $sessions[$key] = ['meta' => $sess, 'items' => []];
+                                            }
+                                            $sessions[$key]['items'][] = $m;
+                                        }
+                                        // Sort sessions chronologically
+                                        $sessionOrder = ['🌅 Morning', '☀️ Afternoon', '🌆 Evening', '🌙 Night'];
+                                        uksort($sessions, fn($a,$b) => array_search($a,$sessionOrder) - array_search($b,$sessionOrder));
+                                        $totalMeds = count($medicines);
+                                    @endphp
+
+                                    <div class="indoor-date-card">
+                                        {{-- Date Header --}}
+                                        <div class="indoor-date-header">
+                                            <i class="fas fa-calendar-day"></i>
+                                            <span>{{ $sn++ }}.</span>
+                                            <span class="date-badge">📅 {{ $date }}</span>
+                                            <span class="count-pill">{{ $totalMeds }} medicine{{ $totalMeds !== 1 ? 's' : '' }}</span>
+                                        </div>
+
+                                        {{-- Sessions --}}
+                                        @foreach($sessions as $sessLabel => $sessData)
+                                            @php $s = $sessData['meta']; $items = $sessData['items']; @endphp
+                                            <div class="session-band"
+                                                 style="border-left-color:{{ $s['border'] }}; background:{{ $s['color'] }};">
+
+                                                {{-- Session Header --}}
+                                                <div class="session-header" style="color:{{ $s['text'] }};">
+                                                    <span style="font-size:16px;">{{ $s['icon'] }}</span>
+                                                    <span>{{ str_replace(['🌅 ','☀️ ','🌆 ','🌙 '], '', $sessLabel) }}</span>
+                                                    @if(!empty($items[0]['display_time']))
+                                                        <span class="session-time-pill"
+                                                              style="color:{{ $s['text'] }};">{{ $items[0]['display_time'] }}</span>
+                                                    @endif
+                                                    <span style="margin-left:{{ empty($items[0]['display_time']) ? 'auto' : '6px' }};
+                                                                 font-size:11px; opacity:.7;">
+                                                        {{ count($items) }} item{{ count($items) !== 1 ? 's' : '' }}
+                                                    </span>
+                                                </div>
+
+                                                {{-- Column labels --}}
+                                                <div class="indoor-col-header">
+                                                    <span>Medicine</span>
+                                                    <span>Dose</span>
+                                                    <span>Days</span>
+                                                    <span>Note</span>
+                                                </div>
+
+                                                {{-- Medicine Rows --}}
+                                                @foreach($items as $m)
+                                                    <div class="indoor-med-row">
+                                                        <span class="indoor-med-name">{{ formatValue($m['medicine']) }}</span>
+                                                        <span class="indoor-med-dose">{{ formatValue($m['dose'] ?? '') ?: '—' }}</span>
+                                                        <span class="indoor-med-days">{{ formatValue($m['days'] ?? '') ?: '—' }}</span>
+                                                        <span class="indoor-med-note">{{ formatValue($m['note'] ?? '') }}</span>
+                                                    </div>
+                                                @endforeach
+
+                                            </div>{{-- /session-band --}}
+
+                                            {{-- Dark green divider between sessions --}}
+                                            @if(!$loop->last)
+                                                <div style="height:3px; background: linear-gradient(90deg,#006637 60%,transparent);
+                                                            margin:0 0 0 0; opacity:.35;"></div>
+                                            @endif
                                         @endforeach
-                                    </tbody>
-                                </table>
+                                    </div>{{-- /indoor-date-card --}}
+                                @endforeach
+
                                 <div class="pagination">
                                     <div class="pagination-info">Showing {{ ($currentIndoorPage - 1) * $indoorPerPage + 1 }} to
                                         {{ min($currentIndoorPage * $indoorPerPage, $groupedIndoor->count()) }} of
@@ -3297,4 +3491,220 @@
             This is a computer-generated medical record. Not valid for medico-legal purposes.
         </div>
     </div>
+
+    {{-- ===== Add Indoor Patient Modal ===== --}}
+    <div class="modal fade" id="profileIndoorModal" tabindex="-1" aria-labelledby="profileIndoorModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+                <form action="{{ route('svc.profile.indoor-treatment', $patient->id) }}" method="POST" id="profileIndoorTreatmentForm">
+                    @csrf
+
+                    {{-- Modal Header --}}
+                    <div class="modal-header" style="background-color: #006637; color: white;">
+                        <h5 class="modal-title" id="profileIndoorModalLabel" style="color: white;">
+                            <i class="bi bi-hospital-fill"></i> Manage Indoor Treatment Logs
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    {{-- Modal Body --}}
+                    <div class="modal-body">
+
+                        {{-- Patient Info --}}
+                        <div class="indoor-patient-info mb-4" style="background: #f8f9fa; border-left: 4px solid #006637; padding: 15px; border-radius: 6px;">
+                            <div class="row g-3">
+                                <div class="col-md-3"><strong>Name:</strong> {{ $patient->patient_name }}</div>
+                                <div class="col-md-2"><strong>Age:</strong> {{ $patient->age }}</div>
+                                <div class="col-md-3"><strong>Diagnosis:</strong> {{ $patient->diagnosis ?? 'N/A' }}</div>
+                                <div class="col-md-4"><strong>Complaints:</strong> {{ $patient->getMeta('complain') ?? 'N/A' }}</div>
+                            </div>
+                        </div>
+
+                        {{-- Section: Treatment History --}}
+                        <div class="mb-4">
+                            <h6 class="d-flex align-items-center gap-2 mb-3" style="color: #006637; font-weight: 700; border-bottom: 2px solid #e9ecef; padding-bottom: 8px;">
+                                <i class="fas fa-history"></i> Past Treatment History
+                            </h6>
+                            <div id="profileIndoorHistoryContainer">
+                                @php
+                                    $indoorTreatments = \App\Models\PatientTreatment::where('patient_id', $patient->patient_id)
+                                        ->where('type', 'indoor')
+                                        ->orderBy('date', 'desc')
+                                        ->orderBy('time', 'desc')
+                                        ->get();
+                                    $grouped = $indoorTreatments->groupBy(function($t) {
+                                        return ($t->date ?? 'No Date') . '||' . ($t->time ?? 'No Time');
+                                    });
+                                @endphp
+
+                                @forelse($grouped as $key => $items)
+                                    @php
+                                        [$gDate, $gTime] = explode('||', $key);
+                                        $displayDate = $gDate !== 'No Date' ? \Carbon\Carbon::parse($gDate)->format('d/m/Y') : 'No Date';
+                                        $displayTime = $gTime !== 'No Time' ? \Carbon\Carbon::createFromFormat('H:i:s', $gTime)->format('h:i A') : 'No Time';
+                                    @endphp
+                                    <div class="card mb-2 border-0 shadow-sm" style="border-left: 3px solid #17a2b8 !important;">
+                                        <div class="card-header py-1 px-3 d-flex justify-content-between align-items-center" style="background: #f8f9fa; border-bottom: none;">
+                                            <span style="font-size: 12px; font-weight: 600; color: #006637;">
+                                                <i class="bi bi-calendar-event me-1"></i> {{ $displayDate }} &nbsp;|&nbsp; <i class="bi bi-clock me-1"></i> {{ $displayTime }}
+                                            </span>
+                                            <span class="badge bg-light text-dark border">{{ $items->count() }} {{ $items->count() === 1 ? 'item' : 'items' }}</span>
+                                        </div>
+                                        <div class="card-body py-2 px-3">
+                                            @foreach($items as $t)
+                                                <div class="d-flex justify-content-between align-items-center py-1" style="font-size: 13px; border-bottom: 1px solid #f0f0f0;">
+                                                    <span style="font-weight: 500; color: #333;"><i class="bi bi-capsule me-2" style="color: #006637;"></i>{{ $t->medicine ?? '-' }}</span>
+                                                    <span class="text-muted" style="font-size: 12px; font-style: italic;">{{ $t->note ?? '' }}</span>
+                                                </div>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @empty
+                                    <div class="text-muted text-center py-2" style="font-size: 13px;">No past treatment logs recorded yet.</div>
+                                @endforelse
+                            </div>
+                        </div>
+
+                        {{-- Section: Add New Treatment Entry --}}
+                        <div>
+                            <div class="d-flex justify-content-between align-items-center mb-3" style="border-bottom: 2px solid #e9ecef; padding-bottom: 8px;">
+                                <h6 class="m-0" style="color: #006637; font-weight: 700;">
+                                    <i class="bi bi-plus-circle-fill"></i> Add New Treatment Entry
+                                </h6>
+                                <button type="button" class="add-slot-btn btn btn-sm" onclick="addProfileIndoorSlot()" style="background-color: #006637; color: white;">
+                                    <i class="bi bi-plus-lg"></i> Add Another Slot
+                                </button>
+                            </div>
+
+                            {{-- Slots Container --}}
+                            <div id="profileIndoorSlotsContainer">
+                                {{-- Slots added dynamically --}}
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {{-- Modal Footer --}}
+                    <div class="modal-footer justify-content-end gap-2" style="background-color: #f8f9fa;">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary" style="background-color: #006637; border-color: #006637;">
+                            <i class="bi bi-check-lg me-1"></i> Submit New Logs
+                        </button>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let profileIndoorSlotCounter = 0;
+
+        function openProfileIndoorModal() {
+            const container = document.getElementById('profileIndoorSlotsContainer');
+            container.innerHTML = '';
+            profileIndoorSlotCounter = 0;
+
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+
+            createProfileIndoorSlot(`${yyyy}-${mm}-${dd}`, `${hh}:${min}`, profileIndoorSlotCounter++);
+
+            const modal = new bootstrap.Modal(document.getElementById('profileIndoorModal'));
+            modal.show();
+        }
+
+        function createProfileIndoorSlot(date, time, slotIndex) {
+            const container = document.getElementById('profileIndoorSlotsContainer');
+
+            const slot = document.createElement('div');
+            slot.className = 'date-slot-card mb-3 p-3';
+            slot.style.border = '1px solid #ced4da';
+            slot.style.borderRadius = '8px';
+            slot.style.background = '#fff';
+            slot.setAttribute('data-slot', slotIndex);
+
+            slot.innerHTML = `
+                <div class="date-slot-header d-flex align-items-center gap-2 mb-3 pb-2" style="border-bottom: 1px solid #dee2e6;">
+                    <label style="font-weight: 600; font-size: 13px; color: #495057;">Date &amp; Time:</label>
+                    <input type="date" class="form-control form-control-sm w-auto" name="slot_date[${slotIndex}]" value="${date}" required>
+                    <span class="slot-at-separator">@</span>
+                    <input type="time" class="form-control form-control-sm w-auto" name="slot_time[${slotIndex}]" value="${time}">
+                    <button type="button" class="btn btn-sm btn-outline-danger ms-auto d-flex align-items-center gap-1" onclick="removeProfileIndoorSlot(this)" style="padding: 2px 8px; font-size: 12px;">
+                        <i class="bi bi-trash"></i> Drop Slot
+                    </button>
+                </div>
+                <div class="date-slot-body">
+                    <div class="medicine-rows-container">
+                        <div class="medicine-row d-flex gap-2 mb-2">
+                            <input type="text" class="form-control form-control-sm flex-grow-1" name="slot_medicine[${slotIndex}][]" placeholder="Enter medicine name / action" autocomplete="off" required>
+                            <input type="text" class="form-control form-control-sm w-25" name="slot_note[${slotIndex}][]" placeholder="Dosage / Note">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deleteProfileMedicineRow(this)" title="Remove Row">
+                                <i class="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-success d-inline-flex align-items-center gap-1" onclick="addProfileMedicineRow(this, ${slotIndex})" style="font-size: 12px;">
+                        <i class="bi bi-plus"></i> Add Item Row
+                    </button>
+                </div>
+            `;
+
+            container.appendChild(slot);
+        }
+
+        function addProfileIndoorSlot() {
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            createProfileIndoorSlot(`${yyyy}-${mm}-${dd}`, `${hh}:${min}`, profileIndoorSlotCounter++);
+        }
+
+        function addProfileMedicineRow(btn, slotIndex) {
+            const card = btn.closest('.date-slot-card');
+            const rowsContainer = card.querySelector('.medicine-rows-container');
+            const row = document.createElement('div');
+            row.className = 'medicine-row d-flex gap-2 mb-2';
+            row.innerHTML = `
+                <input type="text" class="form-control form-control-sm flex-grow-1" name="slot_medicine[${slotIndex}][]" placeholder="Enter medicine name / action" autocomplete="off" required>
+                <input type="text" class="form-control form-control-sm w-25" name="slot_note[${slotIndex}][]" placeholder="Dosage / Note">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deleteProfileMedicineRow(this)" title="Remove Row">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            `;
+            rowsContainer.appendChild(row);
+            row.querySelector('input').focus();
+        }
+
+        function deleteProfileMedicineRow(btn) {
+            const card = btn.closest('.date-slot-card');
+            const rowsContainer = card.querySelector('.medicine-rows-container');
+            const rows = rowsContainer.querySelectorAll('.medicine-row');
+            if (rows.length > 1) {
+                btn.closest('.medicine-row').remove();
+            } else {
+                btn.closest('.medicine-row').querySelectorAll('input').forEach(i => i.value = '');
+            }
+        }
+
+        function removeProfileIndoorSlot(btn) {
+            const container = document.getElementById('profileIndoorSlotsContainer');
+            const slots = container.querySelectorAll('.date-slot-card');
+            if (slots.length > 1) {
+                btn.closest('.date-slot-card').remove();
+            } else {
+                btn.closest('.date-slot-card').querySelectorAll('input[type="text"]').forEach(i => i.value = '');
+            }
+        }
+    </script>
+
 @endsection

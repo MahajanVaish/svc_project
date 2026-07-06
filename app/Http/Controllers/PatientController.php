@@ -646,4 +646,123 @@ class PatientController extends Controller
             ], 500);
         }
     }
+
+    /**
+     * Analytics page - monthly new patients, trends, diagnosis breakdown
+     */
+    public function analytics(Request $request)
+    {
+        $user         = Auth::user();
+        $isSuperadmin = $user->hasRole('Superadmin');
+
+        $branchId   = null;
+        $branchName = null;
+        if (!$isSuperadmin) {
+            $b = DB::table('branches')
+                ->where('branch_id', $user->user_branch)
+                ->orWhere('branch_name', $user->user_branch)
+                ->first();
+            if ($b) { $branchId = $b->branch_id; $branchName = $b->branch_name; }
+        }
+
+        $branches = $isSuperadmin
+            ? DB::table('branches')->where('delete_status', '0')->orderBy('branch_name')->get()
+            : DB::table('branches')->where('branch_id', $branchId)->get();
+
+        return view('analytics', compact('branches', 'isSuperadmin', 'branchId', 'branchName'));
+    }
+
+    /**
+     * AJAX - return monthly new patient counts + breakdown
+     */
+    public function analyticsData(Request $request)
+    {
+        try {
+            $user         = Auth::user();
+            $isSuperadmin = $user->hasRole('Superadmin');
+            $branchId     = $request->input('branch_id');
+            $year         = (int)($request->input('year', now()->year));
+
+            if (!$isSuperadmin) {
+                $b = DB::table('branches')
+                    ->where('branch_id', $user->user_branch)
+                    ->orWhere('branch_name', $user->user_branch)
+                    ->first();
+                $branchId = $b ? $b->branch_id : null;
+            }
+
+            $monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+            // patient_inquiry (SVC branch patients)
+            $piQ = DB::table('patient_inquiry')
+                ->selectRaw("MONTH(created_at) as month, COUNT(*) as total")
+                ->whereYear('created_at', $year);
+            if ($branchId) $piQ->where('branch_id', $branchId);
+            $piMonthly = $piQ->groupByRaw('MONTH(created_at)')->pluck('total', 'month')->toArray();
+
+            // acc_inquirys (FNF/Diet Chart patients)
+            $accQ = DB::table('acc_inquirys')
+                ->selectRaw("MONTH(created_at) as month, COUNT(*) as total")
+                ->whereYear('created_at', $year)
+                ->where('delete_status', '0');
+            if ($branchId) $accQ->where('branch_id', $branchId);
+            $accMonthly = $accQ->groupByRaw('MONTH(created_at)')->pluck('total', 'month')->toArray();
+
+            // Build 12 months
+            $months    = [];
+            $totalYear = 0;
+            $maxMonth  = 0;
+            $maxCount  = 0;
+
+            for ($m = 1; $m <= 12; $m++) {
+                $count     = ($piMonthly[$m] ?? 0) + ($accMonthly[$m] ?? 0);
+                $months[]  = ['month' => $m, 'label' => $monthNames[$m - 1], 'count' => $count];
+                $totalYear += $count;
+                if ($count > $maxCount) { $maxCount = $count; $maxMonth = $m; }
+            }
+
+            // Top diagnoses this year
+            $diagQ = DB::table('patient_inquiry')
+                ->selectRaw("diagnosis, COUNT(*) as cnt")
+                ->whereYear('created_at', $year)
+                ->whereNotNull('diagnosis')
+                ->where('diagnosis', '!=', '');
+            if ($branchId) $diagQ->where('branch_id', $branchId);
+            $rawDiags = $diagQ->groupBy('diagnosis')->orderByDesc('cnt')->limit(50)->get();
+
+            $diagMap = [];
+            foreach ($rawDiags as $row) {
+                foreach (array_filter(array_map('trim', explode(',', $row->diagnosis))) as $d) {
+                    $diagMap[$d] = ($diagMap[$d] ?? 0) + $row->cnt;
+                }
+            }
+            arsort($diagMap);
+            $topDiagnoses = array_slice($diagMap, 0, 8, true);
+
+            // Last year total for YoY
+            $lyQ = DB::table('patient_inquiry')->selectRaw("COUNT(*) as total")->whereYear('created_at', $year - 1);
+            if ($branchId) $lyQ->where('branch_id', $branchId);
+            $lastYearTotal = $lyQ->value('total') ?? 0;
+
+            $growth      = $lastYearTotal > 0 ? round((($totalYear - $lastYearTotal) / $lastYearTotal) * 100, 1) : null;
+            $currentMonth = now()->year == $year ? now()->month : 12;
+            $avgPerMonth  = $currentMonth > 0 ? round($totalYear / $currentMonth, 1) : 0;
+
+            return response()->json([
+                'success'       => true,
+                'year'          => $year,
+                'months'        => $months,
+                'total_year'    => $totalYear,
+                'last_year'     => $lastYearTotal,
+                'growth'        => $growth,
+                'avg_per_month' => $avgPerMonth,
+                'best_month'    => $maxMonth > 0 ? $monthNames[$maxMonth - 1] : '—',
+                'best_count'    => $maxCount,
+                'top_diagnoses' => $topDiagnoses,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Analytics data error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 }

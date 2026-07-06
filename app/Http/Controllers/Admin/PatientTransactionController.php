@@ -361,4 +361,41 @@ class PatientTransactionController extends Controller
             'onlineProgramLabel'
         ));
     }
+
+    /**
+     * Delete all transactions and invoice for a patient session
+     */
+    public function deletePatientTransactions(\Illuminate\Http\Request $request)
+    {
+        try {
+            $patientId = $request->input('patient_id');
+            $invoiceId = $request->input('invoice_id');
+
+            if (empty($patientId)) {
+                return response()->json(['success' => false, 'message' => 'Patient ID required'], 400);
+            }
+
+            $deleted = 0;
+
+            // Delete transactions for this specific invoice or all for patient
+            if ($invoiceId) {
+                $deleted += \App\Models\PatientTransaction::where('patient_id', $patientId)
+                    ->where('invoice_id', $invoiceId)
+                    ->delete();
+                // Delete invoice
+                \App\Models\Invoice::where('id', $invoiceId)->delete();
+            } else {
+                $deleted += \App\Models\PatientTransaction::where('patient_id', $patientId)->delete();
+                \App\Models\Invoice::where('patient_id', $patientId)->delete();
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => "Deleted {$deleted} transaction(s) successfully."
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Delete transaction error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 }

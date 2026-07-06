@@ -1425,11 +1425,11 @@
 
                                             <div class="row">
                                                 <div class="col-sm-3">
-                                                    <p class="mb-0 profile_txt_color">Patient Status</p>
+                                                    <p class="mb-0 profile_txt_color">Client Type</p>
                                                 </div>
                                                 <div class="col-sm-9">
                                                     <p class="text-muted mb-0">
-                                                        {{ is_array($patient->user_status) ? implode(', ', $patient->user_status) : ($patient->user_status ?? '-') }}
+                                                        {{ ucfirst($patient->client_type ?? 'New') }}
                                                     </p>
                                                 </div>
                                             </div>
@@ -1437,10 +1437,17 @@
 
                                             <div class="row">
                                                 <div class="col-sm-3">
-                                                    <p class="mb-0 profile_txt_color">Inquiry Payment</p>
+                                                    <p class="mb-0 profile_txt_color">Programs Detail</p>
                                                 </div>
                                                 <div class="col-sm-9">
-                                                    <p class="text-muted mb-0">{{ $patient->payment ?? '-' }}</p>
+                                                    <p class="text-muted mb-0">
+                                                        @php
+                                                            $programs = is_array($patient->program_name)
+                                                                ? $patient->program_name
+                                                                : (json_decode($patient->program_name, true) ?? [$patient->program_name]);
+                                                        @endphp
+                                                        {{ !empty(array_filter((array)$programs)) ? implode(', ', array_filter((array)$programs)) : '-' }}
+                                                    </p>
                                                 </div>
                                             </div>
                                         </div>
