@@ -167,6 +167,11 @@
                     }
                 }
 
+                if (!empty($inquiry->programs_array)) {
+                    $decodedProgs = json_decode($inquiry->programs_array, true) ?: [];
+                    $programs = array_merge($programs, collect($decodedProgs)->pluck('program')->filter()->toArray());
+                }
+
                 // Clean and deduplicate programs
                 $programs = array_unique(array_filter($programs));
 
@@ -191,7 +196,7 @@
             @endif
         </td>
         <td class="py-2.5 px-3">
-            <a href="{{ route('diet.join.patient', $inquiry->id) }}" style="color: #28a745; text-decoration: none;"
+            <a href="{{ route('diet.join.patient', ['id' => $inquiry->id, 'redirect_to' => 'joined']) }}" style="color: #28a745; text-decoration: none;"
                 title="View/Edit Diet Chart">
                 Diet H/O
             </a>

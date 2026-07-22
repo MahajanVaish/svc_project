@@ -57,6 +57,17 @@ class AccInquiry extends Model
         'delete_status',
         'delete_by',
         'is_online_abroad',
+        // Direct single-table columns
+        'diet',
+        'exercise',
+        'sleep',
+        'water',
+        'joined_program_ids',
+        'programs_array',
+        'cash_payment',
+        'gpay_payment',
+        'cheque_payment',
+        'due_payment',
     ];
 
     protected $casts = [

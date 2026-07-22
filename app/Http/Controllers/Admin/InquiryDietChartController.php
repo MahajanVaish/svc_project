@@ -101,78 +101,103 @@ public function dietChartSearch(Request $request)
     public function create(Request $request)
     {
         $lead = null;
-        $selectedStatuses = [];
-        $optMeta = []; // For repopulating health metrics and payment fields on edit
+        $selectedStatuses = ['Pending'];
+        $optMeta = [];
 
-        if ($request->id) {
-            // Use withoutGlobalScopes to ensure the record is found regardless of branch restriction
-            $lead = AccInquiry::withoutGlobalScopes()->find($request->id);
+        $branches = Branch::all(['branch_id', 'branch_name']);
 
-            // Load existing statuses - use the casted array directly
-            if ($lead) {
-                $selectedStatuses = $lead->status_history ?? [];
+        $doctors = \App\Models\User::where('user_role', 6)
+            ->orWhereHas('roles', function ($query) {
+                $query->where('name', 'Doctor');
+            })
+            ->get(['id', 'name']);
 
-                // Ensure it's always an array
-                if (is_string($selectedStatuses)) {
-                    $selectedStatuses = json_decode($selectedStatuses, true) ?? [];
-                } elseif (!is_array($selectedStatuses)) {
-                    $selectedStatuses = [];
-                }
+        $joinedPrograms = \App\Models\ManageProgram::where('delete_status', 0)
+            ->where('branch', 'FNF')
+            ->orderBy('program_name', 'asc')
+            ->get();
 
-                // Load latest Opt meta for health metrics and payment fields
-                // Search by BOTH the string patient_id AND the numeric acc_inquirys.id
-                // to handle old records where patient_id may not be set
-                $latestOpt = null;
+        return view('admin.inquiry.add_inquiry', compact('branches', 'lead', 'selectedStatuses', 'doctors', 'joinedPrograms', 'optMeta'));
+    }
 
-                if (!empty($lead->patient_id)) {
-                    $latestOpt = Opt::where('patient_id', $lead->patient_id)
-                        ->where(function ($q) {
-                            $q->whereNull('delete_status')
-                              ->orWhere('delete_status', '')
-                              ->orWhere('delete_status', '0');
-                        })
-                        ->orderByDesc('id')
-                        ->first();
-                }
+    public function edit($id)
+    {
+        // Use withoutGlobalScopes to ensure the record is found regardless of branch restriction
+        $lead = AccInquiry::withoutGlobalScopes()->findOrFail($id);
 
-                // Fallback: old data may have Opt saved with the numeric acc_inquirys.id as patient_id
-                if (!$latestOpt) {
-                    $latestOpt = Opt::where('patient_id', (string) $lead->id)
-                        ->where(function ($q) {
-                            $q->whereNull('delete_status')
-                              ->orWhere('delete_status', '')
-                              ->orWhere('delete_status', '0');
-                        })
-                        ->orderByDesc('id')
-                        ->first();
-                }
+        $selectedStatuses = $lead->status_history ?? [];
+        if (is_string($selectedStatuses)) {
+            $selectedStatuses = json_decode($selectedStatuses, true) ?? [];
+        } elseif (!is_array($selectedStatuses)) {
+            $selectedStatuses = [];
+        }
 
-                if ($latestOpt) {
-                    $metaRecords = OptMeta::where('opt_id', $latestOpt->id)->get();
-                    foreach ($metaRecords as $meta) {
-                        $optMeta[$meta->meta_key] = $meta->meta_value;
+        $optMeta = [
+            'diet' => $lead->diet,
+            'exercise' => $lead->exercise,
+            'sleep' => $lead->sleep,
+            'water' => $lead->water,
+            'joined_program_ids' => $lead->joined_program_ids,
+            'programs_array' => $lead->programs_array,
+            'cash_payment' => $lead->cash_payment,
+            'gpay_payment' => $lead->gpay_payment,
+            'cheque_payment' => $lead->cheque_payment,
+            'due_payment' => $lead->due_payment,
+            'inquiry_foc' => $lead->inquiry_foc,
+            'given_payment' => (string)((float)($lead->cash_payment ?? 0) + (float)($lead->gpay_payment ?? 0) + (float)($lead->cheque_payment ?? 0)),
+        ];
+        
+        $hasAnyDirectData = false;
+        foreach (['diet', 'exercise', 'sleep', 'water', 'joined_program_ids', 'programs_array'] as $key) {
+            if (!empty($optMeta[$key]) && $optMeta[$key] !== '[]') {
+                $hasAnyDirectData = true;
+                break;
+            }
+        }
+
+        if (!$hasAnyDirectData) {
+            // Load all Opt records for this patient (including fallback by numeric id)
+            $optIds = Opt::where(function($q) use ($lead) {
+                    if (!empty($lead->patient_id)) {
+                        $q->where('patient_id', $lead->patient_id);
                     }
+                    if (!empty($lead->id)) {
+                        $q->orWhere('patient_id', (string) $lead->id);
+                    }
+                })
+                ->where(function ($q) {
+                    $q->whereNull('delete_status')
+                      ->orWhere('delete_status', '')
+                      ->orWhere('delete_status', '0');
+                })
+                ->pluck('id')
+                ->toArray();
+
+            if (!empty($optIds)) {
+                $metaRecords = OptMeta::whereIn('opt_id', $optIds)
+                    ->orderBy('opt_id', 'asc')
+                    ->get();
+                foreach ($metaRecords as $meta) {
+                    $optMeta[$meta->meta_key] = $meta->meta_value;
                 }
+            }
 
-                // If health metrics still empty, fill from any Opt record linked by patient name
-                // (covers patients imported from old system with mismatched patient_id)
-                if (empty($optMeta['diet']) && empty($optMeta['exercise']) && !empty($lead->patient_name)) {
-                    $nameOpt = Opt::where('patient_name', $lead->patient_name)
-                        ->where(function ($q) {
-                            $q->whereNull('delete_status')
-                              ->orWhere('delete_status', '')
-                              ->orWhere('delete_status', '0');
-                        })
-                        ->orderByDesc('id')
-                        ->first();
+            // Fallback by name
+            if (empty($optMeta['diet']) && empty($optMeta['exercise']) && !empty($lead->patient_name)) {
+                $nameOpt = Opt::where('patient_name', $lead->patient_name)
+                    ->where(function ($q) {
+                        $q->whereNull('delete_status')
+                          ->orWhere('delete_status', '')
+                          ->orWhere('delete_status', '0');
+                    })
+                    ->orderByDesc('id')
+                    ->first();
 
-                    if ($nameOpt) {
-                        $metaRecords = OptMeta::where('opt_id', $nameOpt->id)->get();
-                        foreach ($metaRecords as $meta) {
-                            // Only fill keys that are missing
-                            if (!isset($optMeta[$meta->meta_key])) {
-                                $optMeta[$meta->meta_key] = $meta->meta_value;
-                            }
+                if ($nameOpt) {
+                    $metaRecords = OptMeta::where('opt_id', $nameOpt->id)->get();
+                    foreach ($metaRecords as $meta) {
+                        if (!isset($optMeta[$meta->meta_key])) {
+                            $optMeta[$meta->meta_key] = $meta->meta_value;
                         }
                     }
                 }
@@ -439,8 +464,7 @@ public function dietChartSearch(Request $request)
     //     }
     // }
 
-
-public function store(Request $request)
+    public function store(Request $request)
     {
         try {
             $validated = $request->validate([
@@ -470,15 +494,13 @@ public function store(Request $request)
                 'existing_patient_id' => 'nullable|string',
             ]);
 
-            $leadId = $request->lead_id;
             $selectedStatuses = $request->user_status ?? [];
             $existingPatientId = $request->existing_patient_id;
 
-            if (! $leadId && empty($selectedStatuses)) {
+            if (empty($selectedStatuses)) {
                 $selectedStatuses = ['Pending'];
             }
 
-            // For editing, if branch is readonly in form, it should still pass the branch ID
             $branch = Branch::where('branch_id', $validated['branch'])
                 ->where('delete_status', 0)
                 ->first();
@@ -507,6 +529,40 @@ public function store(Request $request)
 
             // Support both old field name 'refrance' and new 'reference_by'
             $refrance = $validated['reference_by'] ?? $validated['refrance'] ?? '';
+
+            // Handle joined program details directly for acc_inquirys columns
+            $joinedProgramIdsJson = '[]';
+            $programsArrayJson = '[]';
+
+            if ($request->has('joined_program_id') && is_array($request->joined_program_id)) {
+                $programIds = [];
+                $allPrograms = [];
+                foreach ($request->joined_program_id as $index => $pId) {
+                    if (!empty($pId)) {
+                        $programIds[] = $pId;
+                        $progModel = \App\Models\ManageProgram::find($pId);
+                        $progName = $progModel ? $progModel->program_name : '';
+                        $session = $request->session[$index] ?? '';
+                        $months = $request->months[$index] ?? '';
+                        
+                        $allPrograms[] = [
+                            'program' => $progName,
+                            'session' => $session,
+                            'months' => $months,
+                            'total' => ($index === 0) ? ($request->total_payment ?? '0.00') : '0.00',
+                            'cash_payment' => $request->cash_payment ?? '',
+                            'gpay_payment' => $request->gpay_payment ?? '',
+                            'cheque_payment' => $request->cheque_payment ?? '',
+                            'payment_method' => $request->payment_method ?? 'Cash',
+                            'payment_date' => date('Y-m-d'),
+                            'index' => $index,
+                            'created_at' => now()->format('Y-m-d H:i:s')
+                        ];
+                    }
+                }
+                $joinedProgramIdsJson = json_encode(array_values($programIds));
+                $programsArrayJson = json_encode($allPrograms);
+            }
 
             $inquiryData = [
                 'branch' => $branch->branch_name,
@@ -538,38 +594,20 @@ public function store(Request $request)
                 'is_online_abroad' => $request->is_online_abroad ?? 0,
                 'discount_payment' => $request->discount_payment ?? 0,
                 'delete_status' => '0',
+                // Direct columns
+                'diet' => $request->input('diet'),
+                'exercise' => $request->input('exercise'),
+                'sleep' => $request->input('sleep'),
+                'water' => $request->input('water'),
+                'joined_program_ids' => $joinedProgramIdsJson,
+                'programs_array' => $programsArrayJson,
+                'cash_payment' => $request->cash_payment,
+                'gpay_payment' => $request->gpay_payment,
+                'cheque_payment' => $request->cheque_payment,
+                'due_payment' => $request->due_payment,
             ];
 
-
             DB::beginTransaction();
-
-            if ($leadId) {
-                // UPDATE EXISTING INQUIRY
-                $inquiry = AccInquiry::find($leadId);
-
-                if (! $inquiry) {
-                    DB::rollBack();
-                    return back()->with('error', 'Inquiry not found!')->withInput();
-                }
-
-                $inquiry->update($inquiryData);
-
-                // Also save health metrics and payment meta to opt_metas
-                $this->saveInquiryMetaFields($request, $inquiry->patient_id, $branch);
-
-                DB::commit();
-
-                // Redirection logic
-                if (in_array('Pending', $selectedStatuses)) {
-                    return redirect()->route('pending.inquiry')->with('success', 'Inquiry updated successfully!');
-                } elseif (in_array('Joined', $selectedStatuses)) {
-                    return redirect()->route('joined.inquiry')->with('success', 'Patient updated successfully!');
-                } elseif (in_array('Diet Chart', $selectedStatuses) || in_array('Active', $selectedStatuses)) {
-                    return redirect()->route('diet.chart')->with('success', 'Inquiry updated successfully!');
-                } else {
-                    return redirect()->back()->with('success', 'Inquiry updated successfully!');
-                }
-            }
 
             // CREATE NEW INQUIRY
             if ($existingPatientId) {
@@ -630,11 +668,165 @@ public function store(Request $request)
         } catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error saving inquiry: '.$e->getMessage());
-            \Log::error('Trace: '.$e->getTraceAsString());
 
             return back()
                 ->with('error', 'Error saving inquiry: '.$e->getMessage())
                 ->withInput();
+        }
+    }
+
+    public function update(Request $request, $id)
+    {
+        try {
+            $validated = $request->validate([
+                'branch' => 'required',
+                'patient_f_name' => 'required|string|max:100',
+                'patient_m_name' => 'nullable|string|max:100',
+                'patient_l_name' => 'required|string|max:100',
+                'gender' => 'nullable|in:Male,Female,Other',
+                'email' => 'nullable|email',
+                'phone_no' => 'nullable|string|max:20',
+                'age' => 'nullable|integer|min:0',
+                'height' => 'nullable|numeric|min:0',
+                'weight' => 'nullable|numeric|min:0',
+                'address' => 'nullable|string',
+                'refrance' => 'nullable|string|max:255',
+                'reference_by' => 'nullable|string|max:255',
+                'reference_to' => 'nullable|string|max:255',
+                'inquiry_date' => 'required|date',
+                'inquiry_time' => 'required|date_format:H:i',
+                'inquery_given_by' => 'nullable|string|max:255',
+                'total_payment' => 'nullable|numeric|min:0',
+                'inquiry_foc' => 'nullable',
+                'diagnosis' => 'nullable|string',
+                'client_old_new' => 'nullable|in:New,Old,Regular,VIP,Corporate',
+                'user_status' => 'nullable|array',
+                'user_status.*' => 'in:Pending,Diet Chart,Joined,Active,InBody',
+            ]);
+
+            $inquiry = AccInquiry::withoutGlobalScopes()->findOrFail($id);
+            $selectedStatuses = $request->user_status ?? [];
+
+            $branch = Branch::where('branch_id', $validated['branch'])
+                ->where('delete_status', 0)
+                ->first();
+
+            if (! $branch) {
+                return back()->with('error', 'Selected branch not found!')->withInput();
+            }
+
+            $bmi = null;
+            if (! empty($validated['height']) && ! empty($validated['weight']) && $validated['height'] > 0) {
+                $heightMeter = $validated['height'] / 100;
+                $bmi = round($validated['weight'] / ($heightMeter * $heightMeter), 2);
+            }
+
+            $inquiryFoc = ($request->has('inquiry_foc') && !empty($request->input('inquiry_foc'))) ? 'Yes' : 'No';
+            $payment = $inquiryFoc === 'Yes' ? 0 : ($request->total_payment ?? 0);
+            $clientType = $request->client_old_new ?? 'New';
+            $primaryStatus = ! empty($selectedStatuses) ? $selectedStatuses[0] : 'Pending';
+
+            $patientName = trim($validated['patient_f_name'].' '.
+                           ($validated['patient_m_name'] ? $validated['patient_m_name'].' ' : '').
+                           $validated['patient_l_name']);
+
+            $refrance = $validated['reference_by'] ?? $validated['refrance'] ?? '';
+
+            // Handle joined program details directly for acc_inquirys columns
+            $joinedProgramIdsJson = '[]';
+            $programsArrayJson = '[]';
+
+            if ($request->has('joined_program_id') && is_array($request->joined_program_id)) {
+                $programIds = [];
+                $allPrograms = [];
+                foreach ($request->joined_program_id as $index => $pId) {
+                    if (!empty($pId)) {
+                        $programIds[] = $pId;
+                        $progModel = \App\Models\ManageProgram::find($pId);
+                        $progName = $progModel ? $progModel->program_name : '';
+                        $session = $request->session[$index] ?? '';
+                        $months = $request->months[$index] ?? '';
+                        
+                        $allPrograms[] = [
+                            'program' => $progName,
+                            'session' => $session,
+                            'months' => $months,
+                            'total' => ($index === 0) ? ($request->total_payment ?? '0.00') : '0.00',
+                            'cash_payment' => $request->cash_payment ?? '',
+                            'gpay_payment' => $request->gpay_payment ?? '',
+                            'cheque_payment' => $request->cheque_payment ?? '',
+                            'payment_method' => $request->payment_method ?? 'Cash',
+                            'payment_date' => date('Y-m-d'),
+                            'index' => $index,
+                            'created_at' => now()->format('Y-m-d H:i:s')
+                        ];
+                    }
+                }
+                $joinedProgramIdsJson = json_encode(array_values($programIds));
+                $programsArrayJson = json_encode($allPrograms);
+            }
+
+            $inquiryData = [
+                'branch' => $branch->branch_name,
+                'branch_id' => $validated['branch'],
+                'patient_f_name' => $validated['patient_f_name'],
+                'patient_m_name' => $validated['patient_m_name'] ?? null,
+                'patient_l_name' => $validated['patient_l_name'],
+                'patient_name' => $patientName,
+                'gender' => $validated['gender'] ?? null,
+                'email' => $validated['email'] ?? null,
+                'phone_no' => $validated['phone_no'] ?? '',
+                'age' => $validated['age'] ?? '',
+                'height' => $validated['height'] ?? '',
+                'weight' => $validated['weight'] ?? '',
+                'bmi' => $bmi ?? '',
+                'address' => $validated['address'] ?? '',
+                'refrance' => $refrance,
+                'reference_to' => $request->reference_to ?? '',
+                'inquiry_date' => $validated['inquiry_date'],
+                'inquiry_time' => $validated['inquiry_time'],
+                'inquery_given_by' => $validated['inquery_given_by'] ?? '',
+                'payment' => $payment,
+                'inquiry_foc' => $inquiryFoc,
+                'complain' => $request->complain ?? '',
+                'diagnosis' => $validated['diagnosis'] ?? '',
+                'client_old_new' => $clientType,
+                'user_status' => $primaryStatus,
+                'status_history' => $selectedStatuses,
+                'is_online_abroad' => $request->is_online_abroad ?? 0,
+                'discount_payment' => $request->discount_payment ?? 0,
+                'delete_status' => '0',
+                // Direct columns
+                'diet' => $request->input('diet'),
+                'exercise' => $request->input('exercise'),
+                'sleep' => $request->input('sleep'),
+                'water' => $request->input('water'),
+                'joined_program_ids' => $joinedProgramIdsJson,
+                'programs_array' => $programsArrayJson,
+                'cash_payment' => $request->cash_payment,
+                'gpay_payment' => $request->gpay_payment,
+                'cheque_payment' => $request->cheque_payment,
+                'due_payment' => $request->due_payment,
+            ];
+
+            DB::beginTransaction();
+            $inquiry->update($inquiryData);
+            $this->saveInquiryMetaFields($request, $inquiry->patient_id, $branch);
+            DB::commit();
+
+            if (in_array('Pending', $selectedStatuses)) {
+                return redirect()->route('pending.inquiry')->with('success', 'Inquiry updated successfully!');
+            } elseif (in_array('Joined', $selectedStatuses)) {
+                return redirect()->route('joined.inquiry')->with('success', 'Patient updated successfully!');
+            } elseif (in_array('Diet Chart', $selectedStatuses) || in_array('Active', $selectedStatuses)) {
+                return redirect()->route('diet.chart')->with('success', 'Inquiry updated successfully!');
+            } else {
+                return redirect()->back()->with('success', 'Inquiry updated successfully!');
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error updating inquiry: ' . $e->getMessage());
+            return back()->with('error', 'Error updating inquiry: ' . $e->getMessage())->withInput();
         }
     }
 
@@ -936,8 +1128,13 @@ public function store(Request $request)
                 ->orderBy('program_name', 'asc')
                 ->get();
 
-            // Fetch the latest Opt (Diet H/O) record for this patient
-            $latestOpt = Opt::where('patient_id', $patient->patient_id)
+            // Fetch the latest Opt (Diet H/O) record for this patient (including fallback by numeric id)
+            $latestOpt = Opt::where(function($q) use ($patient) {
+                    $q->where('patient_id', $patient->patient_id);
+                    if (!empty($patient->id)) {
+                        $q->orWhere('patient_id', (string)$patient->id);
+                    }
+                })
                 ->where(function ($q) {
                     $q->whereNull('delete_status')
                       ->orWhere('delete_status', '')
@@ -957,7 +1154,12 @@ public function store(Request $request)
 
             // Fetch diet history (all non-deleted Opt records for this patient)
             // Eager-load meta to avoid N+1 queries in the lab history loop below
-            $dietHistory = Opt::where('patient_id', $patient->patient_id)
+            $dietHistory = Opt::where(function($q) use ($patient) {
+                    $q->where('patient_id', $patient->patient_id);
+                    if (!empty($patient->id)) {
+                        $q->orWhere('patient_id', (string)$patient->id);
+                    }
+                })
                 ->where(function ($q) {
                     $q->whereNull('delete_status')
                       ->orWhere('delete_status', '')
@@ -1011,6 +1213,8 @@ public function store(Request $request)
                 }
             }
 
+            $redirect_to = request()->query('redirect_to');
+
             // Return the diet chart form view with all the patient data and history
             return view('admin.inquiry.diet_join_patient', compact(
                 'patient',
@@ -1018,7 +1222,8 @@ public function store(Request $request)
                 'latestOpt',
                 'latestMeta',
                 'dietHistory',
-                'labHistory'
+                'labHistory',
+                'redirect_to'
             ));
         } catch (\Exception $e) {
             Log::error('Error in dietJoinPatient: ' . $e->getMessage(), [
@@ -1040,9 +1245,13 @@ public function store(Request $request)
                       ->orWhere('delete_status', '0');
                 })
                 ->firstOrFail();
-
-            // Find the patient in AccInquiry
-            $patient = AccInquiry::where('patient_id', $optData->patient_id)
+            // Find the patient in AccInquiry (supporting both string and numeric id fallback)
+            $patient = AccInquiry::where(function($q) use ($optData) {
+                    $q->where('patient_id', $optData->patient_id);
+                    if (is_numeric($optData->patient_id)) {
+                        $q->orWhere('id', (int)$optData->patient_id);
+                    }
+                })
                 ->where('delete_status', '0')
                 ->firstOrFail();
 
@@ -1057,9 +1266,16 @@ public function store(Request $request)
             foreach ($metaRecords as $meta) {
                 $optMeta[$meta->meta_key] = $meta->meta_value;
             }
-
-            // Fetch full diet history (all non-deleted Opt records for this patient)
-            $dietHistory = Opt::where('patient_id', $optData->patient_id)
+            // Fetch full diet history (all non-deleted Opt records for this patient, supporting fallback)
+            $dietHistory = Opt::where(function($q) use ($patient, $optData) {
+                    $q->where('patient_id', $optData->patient_id);
+                    if ($patient && !empty($patient->patient_id)) {
+                        $q->orWhere('patient_id', $patient->patient_id);
+                    }
+                    if ($patient && !empty($patient->id)) {
+                        $q->orWhere('patient_id', (string)$patient->id);
+                    }
+                })
                 ->where(function ($q) {
                     $q->whereNull('delete_status')
                       ->orWhere('delete_status', '')
@@ -1075,13 +1291,16 @@ public function store(Request $request)
                 ->orderByDesc('assessment_date')
                 ->get();
 
+            $redirect_to = request()->query('redirect_to');
+
             return view('admin.inquiry.edit_diet_join_patient', compact(
                 'patient',
                 'optData',
                 'optMeta',
                 'available_programs',
                 'dietHistory',
-                'measurements'
+                'measurements',
+                'redirect_to'
             ));
         } catch (\Exception $e) {
             Log::error('Error in editDietJoinPatient: ' . $e->getMessage(), [
@@ -1249,8 +1468,20 @@ public function store(Request $request)
 
             DB::commit();
 
-            return redirect()->route('diet.chart')
-                ->with('success', 'Diet chart updated successfully!');
+            $redirectTo = $request->input('redirect_to');
+            if ($redirectTo === 'joined') {
+                return redirect()->route('joined.inquiry')
+                    ->with('success', 'Diet chart updated successfully!');
+            } elseif ($redirectTo === 'online') {
+                return redirect()->route('online.abroad.inquiry')
+                    ->with('success', 'Diet chart updated successfully!');
+            } elseif ($redirectTo === 'followup') {
+                return redirect()->route('followup.patients.appointment')
+                    ->with('success', 'Diet chart updated successfully!');
+            } else {
+                return redirect()->route('diet.chart')
+                    ->with('success', 'Diet chart updated successfully!');
+            }
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Error in updateDietChart: ' . $e->getMessage(), [
@@ -1551,9 +1782,20 @@ public function store(Request $request)
 
             DB::commit();
 
-
-            return redirect()->route('diet.chart')
-                ->with('success', 'Diet chart saved successfully!');
+            $redirectTo = $request->input('redirect_to');
+            if ($redirectTo === 'joined') {
+                return redirect()->route('joined.inquiry')
+                    ->with('success', 'Diet chart saved successfully!');
+            } elseif ($redirectTo === 'online') {
+                return redirect()->route('online.abroad.inquiry')
+                    ->with('success', 'Diet chart saved successfully!');
+            } elseif ($redirectTo === 'followup') {
+                return redirect()->route('followup.patients.appointment')
+                    ->with('success', 'Diet chart saved successfully!');
+            } else {
+                return redirect()->route('diet.chart')
+                    ->with('success', 'Diet chart saved successfully!');
+            }
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Error: ' . $e->getMessage())
@@ -1611,30 +1853,52 @@ public function patientProfile($id)
 
         // IMPORTANT: paginator default (will be overwritten below)
         $dietPlans = DietPlan::whereRaw('1 = 0')->paginate(5);
+        $patientId = $patient->patient_id ?? null;
 
-        // $optData = OptMeta::where('id', $id)->first();
-        $optData = Opt::where('patient_id', $patient->patient_id)
+        // Find all Opt records for this patient (including fallback by numeric id)
+        $optIds = Opt::where(function($q) use ($patient) {
+                $q->where('patient_id', $patient->patient_id);
+                if (!empty($patient->id)) {
+                    $q->orWhere('patient_id', (string) $patient->id);
+                }
+            })
             ->where(function ($q) {
                 $q->whereNull('delete_status')
                   ->orWhere('delete_status', '')
                   ->orWhere('delete_status', '0');
             })
-            ->orderByDesc('id')
-            ->first();
+            ->pluck('id')
+            ->toArray();
 
-
-        if ($optData) {
-   $optMetaRecords = $optData->meta()->get();
-    foreach ($optMetaRecords as $meta) {
-        $optMeta[$meta->meta_key] = $meta->meta_value;
-    }
-
-    $programDetails = $this->getAllProgramDetails($optData->id, $optMeta);
-    $beforeImages = $this->getAllImages($optData->id, 'before');
-    $afterImages = $this->getAllImages($optData->id, 'after');
+        if (!empty($optIds)) {
+            // Load all meta records for these Opt IDs, ordered by opt_id ascending
+            // so that later Opt records (newer ones) overwrite older ones.
+            $metaRecords = OptMeta::whereIn('opt_id', $optIds)
+                ->orderBy('opt_id', 'asc')
+                ->get();
+                
+            foreach ($metaRecords as $meta) {
+                $optMeta[$meta->meta_key] = $meta->meta_value;
+            }
+            
+            // Gather program details and images from all these Opt records
+            foreach ($optIds as $optId) {
+                $prog = $this->getAllProgramDetails($optId, $optMeta);
+                if (!empty($prog)) {
+                    $programDetails = array_merge($programDetails, $prog);
+                }
+                
+                $bef = $this->getAllImages($optId, 'before');
+                if (!empty($bef)) {
+                    $beforeImages = array_merge($beforeImages, $bef);
+                }
+                
+                $aft = $this->getAllImages($optId, 'after');
+                if (!empty($aft)) {
+                    $afterImages = array_merge($afterImages, $aft);
+                }
+            }
         }
-
-        $patientId = $patient->patient_id ?? null;
 
         // Monthly assessments are keyed by the numeric acc_inquirys.id
         $monthlyAssessments = MonthlyAssessment::where('patient_inquiry_id', $id)
@@ -2902,7 +3166,24 @@ private function getAllImages($optId, $type = 'before')
 
         // Process programs
         $validPrograms = [];
-        if ($request->has('selected_program') && is_array($request->selected_program)) {
+        if ($request->has('joined_program_id') && is_array($request->joined_program_id)) {
+            foreach ($request->joined_program_id as $index => $pId) {
+                if (!empty($pId)) {
+                    $progModel = \App\Models\ManageProgram::find($pId);
+                    $progName = $progModel ? $progModel->program_name : '';
+                    $session = $request->session[$index] ?? '';
+                    $months = $request->months[$index] ?? '';
+                    $price = ($index === 0) ? $totalPayment : 0;
+
+                    $validPrograms[] = [
+                        'program_name' => $progName,
+                        'session' => $session,
+                        'months' => $months,
+                        'price' => $price
+                    ];
+                }
+            }
+        } elseif ($request->has('selected_program') && is_array($request->selected_program)) {
             foreach ($request->selected_program as $index => $programName) {
                 if (!empty($programName)) {
                     $session = $request->session[$index] ?? '';

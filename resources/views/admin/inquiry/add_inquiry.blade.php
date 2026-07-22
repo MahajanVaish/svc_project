@@ -254,7 +254,7 @@
                                 }
                             }
                         </style>
-                        <form action="{{ route('store.inquiry') }}" method="POST" id="inquiryForm">
+                        <form action="{{ isset($lead) ? route('inquiry.update', $lead->id) : route('store.inquiry') }}" method="POST" id="inquiryForm">
                             @if(isset($lead->id))
                                 <input type="hidden" name="id" value="{{ $lead->id }}">
                             @endif
@@ -617,7 +617,7 @@
                                         <div class="custom-checkbox d-flex align-items-center bg-light p-3 rounded cursor-pointer"
                                             style="border: 1px solid #e0e0e0; transition: all 0.3s ease;">
                                             <input class="form-check-input ms-0 me-3 cursor-pointer" type="checkbox"
-                                                name="inquiry_foc" value="1" id="focCheck" {{ old('inquiry_foc') ? 'checked' : (isset($lead) && $lead->getRawOriginal('inquiry_foc') === 'Yes' ? 'checked' : '') }} style="width: 20px; height: 20px;">
+                                                name="inquiry_foc" value="1" id="focCheck" {{ old('inquiry_foc') ? 'checked' : ( (isset($optMeta['inquiry_foc']) && $optMeta['inquiry_foc'] === 'Yes') || (isset($lead) && $lead->inquiry_foc === 'Yes') ? 'checked' : '') }} style="width: 20px; height: 20px;">
                                             <label class="form-check-label fw-bold mb-0 cursor-pointer" for="focCheck"
                                                 style="font-size: 14px; color: #495057;">
                                                 FOC (Free of Charge Inquiry)
@@ -832,6 +832,26 @@
     </div>
 
     <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('inquiryForm');
+            if (form) {
+                form.addEventListener('submit', function () {
+                    ['diagnosis', 'complain'].forEach(function(fieldId) {
+                        const input = document.getElementById(fieldId);
+                        const hiddenInput = document.getElementById(fieldId + '-hidden');
+                        if (input && hiddenInput && input.value.trim()) {
+                            let items = hiddenInput.value ? hiddenInput.value.split(',').map(i => i.trim()).filter(i => i) : [];
+                            const newVal = input.value.trim();
+                            if (!items.includes(newVal)) {
+                                items.push(newVal);
+                                hiddenInput.value = items.join(', ');
+                            }
+                        }
+                    });
+                });
+            }
+        });
+
         // Metrics Calculation Function (BMI, IBW, etc.)
         function calculateMetrics() {
             let height = parseFloat(document.getElementById('heightInput')?.value);
@@ -1046,13 +1066,17 @@
                     totalPrice = inbodyPrice;
                 }
 
+                const isPending = statusPending && statusPending.checked;
+
                 if (totalPaymentInput) {
                     if (focCheck && focCheck.checked) {
                         totalPaymentInput.value = 0;
                         if (discountInput) discountInput.value = 0;
                         if (givenPaymentInput) givenPaymentInput.value = 0;
                     } else {
-                        totalPaymentInput.value = totalPrice;
+                        if (!isPending || totalPrice > 0) {
+                            totalPaymentInput.value = totalPrice;
+                        }
                     }
                     calculateDue();
                 }
@@ -1202,6 +1226,7 @@
             @if(!isset($lead))
                 calculateRegistrationCharges();
             @else
+                calculateGivenPayment();
                 calculateDue();
             @endif
             calculateMetrics();

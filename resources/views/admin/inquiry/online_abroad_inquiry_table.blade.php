@@ -125,7 +125,7 @@
             @endif
         </td>
         <td class="py-2.5 px-3">
-            <a href="{{ route('diet.join.patient', $inquiry->id) }}" style="color: #28a745; text-decoration: none;"
+            <a href="{{ route('diet.join.patient', ['id' => $inquiry->id, 'redirect_to' => 'online']) }}" style="color: #28a745; text-decoration: none;"
                 title="View/Edit Diet Chart">
                 Diet H/O
             </a>

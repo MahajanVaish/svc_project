@@ -365,7 +365,7 @@
         }
 
         function editInquiry(id) {
-            window.location.href = "{{ route('add.inquiry') }}" + "?id=" + id;
+            window.location.href = "/admin/inquiry/" + id + "/edit";
         }
 
         function confirmDelete(form, patientName) {

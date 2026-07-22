@@ -80,7 +80,7 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         function editInquiry(id) {
-            window.location.href = "{{ route('add.inquiry') }}" + "?id=" + id;
+            window.location.href = "/admin/inquiry/" + id + "/edit";
         }
 
         function confirmDelete(form, patientName) {

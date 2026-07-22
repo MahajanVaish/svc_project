@@ -201,152 +201,107 @@ class PatientController extends Controller
             $branchName = $request->input('branch_name');
             $status = $request->input('status', 'all');
 
-            // If branch_name is provided, convert it to branch_id
+            // Resolve branch_id from branch_name
             if (!$branchId && $branchName) {
-                $branch = DB::table('branches')
-                    ->where('branch_name', $branchName)
-                    ->first();
-
-                if ($branch) {
-                    $branchId = $branch->branch_id;
-                }
+                $branch = DB::table('branches')->where('branch_name', $branchName)->first();
+                if ($branch) { $branchId = $branch->branch_id; }
             }
 
-            // Get branch ID based on user role
+            // Non-superadmin always uses their own branch
             if (!$user->hasRole('Superadmin')) {
-                $userBranch = $user->user_branch;
-                $branch = DB::table('branches')
-                    ->where('branch_name', $userBranch)
-                    ->orWhere('branch_id', $userBranch)
+                $b = DB::table('branches')
+                    ->where('branch_name', $user->user_branch)
+                    ->orWhere('branch_id', $user->user_branch)
                     ->first();
-
-                if ($branch) {
-                    $branchId = $branch->branch_id;
-                    $branchName = $branch->branch_name;
+                if ($b) {
+                    $branchId   = $b->branch_id;
+                    $branchName = $b->branch_name;
                 } else {
-                    return response()->json([
-                        'success' => true,
-                        'patient_count' => 0,
-                        'branch_id' => $branchId,
-                        'message' => 'No branch found for user'
-                    ]);
+                    return response()->json(['success' => true, 'patient_count' => 0, 'branch_id' => $branchId]);
                 }
             }
 
+            // ── Determine which tables to count based on branch_id ──────────
+            $lhrBranchIds   = ['LB-0007'];
+            $hydraBranchIds = ['BH-00023'];
+            $svcBranchIds   = ['SVC-0005'];
 
-            $totalCount = 0;
+            $isLHR   = in_array($branchId, $lhrBranchIds);
+            $isHydra = in_array($branchId, $hydraBranchIds);
+            $isSVC   = in_array($branchId, $svcBranchIds);
+            $isFNF   = !$isLHR && !$isHydra && !$isSVC; // PP-*, AW-*, BD *, NT-* etc.
 
+            $patientInquiryCount = 0;
+            $lhrCount            = 0;
+            $hydraCount          = 0;
+            $accCount            = 0;
 
-            $patientInquiryQuery = DB::table('patient_inquiry')
-                ->when($branchId, function ($query) use ($branchId) {
-                    return $query->where('branch_id', $branchId);
-                });
-
-            if ($status === 'pending' || $status === 'diet_chart' || $status === 'online_abroad') {
-                $patientInquiryQuery->whereRaw('1 = 0');
+            // SVC: patient_inquiry table
+            if ($isSVC || !$branchId) {
+                $q = DB::table('patient_inquiry')->when($branchId, fn($q) => $q->where('branch_id', $branchId));
+                if (in_array($status, ['pending', 'diet_chart', 'online_abroad'])) $q->whereRaw('1=0');
+                $patientInquiryCount = $q->count();
             }
 
-            $patientInquiryCount = $patientInquiryQuery->count();
-
-
-            $lhrQuery = DB::table('lhr_inquiries')
-                ->when($branchId, function ($query) use ($branchId) {
-
-                    return $query->where(function ($q) use ($branchId) {
-                        $q->where('branch_id', $branchId)
-                            ->orWhere('branch', 'LIKE', '%' . explode('-', $branchId)[0] . '%');
-                    });
-                });
-
-            if ($status === 'pending') {
-                $lhrQuery->where(function($q) { $q->where('status_name', 'Pending')->orWhere('status_name', 'pending'); });
-            } elseif ($status === 'joined') {
-                $lhrQuery->where(function($q) { $q->where('status_name', 'Joined')->orWhere('status_name', 'joined'); });
-            } elseif ($status === 'diet_chart' || $status === 'online_abroad') {
-                $lhrQuery->whereRaw('1 = 0');
+            // LHR: lhr_inquiries table
+            if ($isLHR || !$branchId) {
+                $q = DB::table('lhr_inquiries')->whereNull('deleted_at')
+                    ->when($branchId, fn($q) => $q->where('branch_id', $branchId));
+                if ($status === 'pending')     $q->whereIn('status_name', ['Pending','pending']);
+                elseif ($status === 'joined')  $q->whereIn('status_name', ['Joined','joined']);
+                elseif (in_array($status, ['diet_chart','online_abroad'])) $q->whereRaw('1=0');
+                $lhrCount = $q->count();
             }
 
-            $lhrCount = $lhrQuery->count();
-
-
-            $hydraQuery = DB::table('hydra_inquiries')
-                ->when($branchId, function ($query) use ($branchId) {
-
-                    return $query->where(function ($q) use ($branchId) {
-                        $q->where('branch_id', $branchId)
-                            ->orWhere('branch', 'LIKE', '%' . explode('-', $branchId)[0] . '%');
-                    });
-                });
-
-            if ($status === 'pending') {
-                $hydraQuery->where(function($q) { $q->where('status_name', 'Pending')->orWhere('status_name', 'pending'); });
-            } elseif ($status === 'joined') {
-                $hydraQuery->where(function($q) { $q->where('status_name', 'Joined')->orWhere('status_name', 'joined'); });
-            } elseif ($status === 'diet_chart' || $status === 'online_abroad') {
-                $hydraQuery->whereRaw('1 = 0');
+            // Hydra: hydra_inquiries table
+            if ($isHydra || !$branchId) {
+                $q = DB::table('hydra_inquiries')
+                    ->when($branchId, fn($q) => $q->where('branch_id', $branchId));
+                if ($status === 'pending')     $q->whereIn('status_name', ['Pending','pending']);
+                elseif ($status === 'joined')  $q->whereIn('status_name', ['Joined','joined']);
+                elseif (in_array($status, ['diet_chart','online_abroad'])) $q->whereRaw('1=0');
+                $hydraCount = $q->count();
             }
 
-            $hydraCount = $hydraQuery->count();
-
-            $accQuery = DB::table('acc_inquirys')
-                ->where('delete_status', '0')
-                ->when($branchId, function ($query) use ($branchId) {
-                    $prefix = explode('-', $branchId)[0];
-
-                    $query->where(function ($q) use ($branchId, $prefix) {
-                        $q->where('branch_id', $branchId)
-                            ->orWhere('branch', 'LIKE', '%' . $prefix . '%');
-                    });
-                });
-
-            if ($status === 'pending') {
-                $accQuery->whereJsonContains('status_history', 'Pending')
-                         ->whereJsonDoesntContain('status_history', 'Diet Chart')
-                         ->whereJsonDoesntContain('status_history', 'Joined')
-                         ->where(function ($q) {
-                             $q->where('is_online_abroad', '!=', 1)->orWhereNull('is_online_abroad');
-                         });
-            } elseif ($status === 'joined') {
-                $accQuery->whereJsonContains('status_history', 'Joined')
-                         ->where(function ($q) {
-                             $q->where('is_online_abroad', '!=', 1)->orWhereNull('is_online_abroad');
-                         });
-            } elseif ($status === 'diet_chart') {
-                $accQuery->where(function($q) {
-                             $q->whereJsonContains('status_history', 'Diet Chart')
-                               ->orWhereJsonContains('status_history', 'Active');
-                         })
-                         ->where(function ($q) {
-                             $q->where('is_online_abroad', '!=', 1)->orWhereNull('is_online_abroad');
-                         });
-            } elseif ($status === 'online_abroad') {
-                $accQuery->where('is_online_abroad', 1);
+            // FNF / ACC: acc_inquirys table (all non-SVC/LHR/Hydra branches)
+            if ($isFNF || !$branchId) {
+                $q = DB::table('acc_inquirys')->where('delete_status', '0')
+                    ->when($branchId, fn($q) => $q->where('branch_id', $branchId));
+                if ($status === 'pending') {
+                    $q->whereJsonContains('status_history', 'Pending')
+                      ->whereJsonDoesntContain('status_history', 'Diet Chart')
+                      ->whereJsonDoesntContain('status_history', 'Joined')
+                      ->where(fn($q) => $q->where('is_online_abroad', '!=', 1)->orWhereNull('is_online_abroad'));
+                } elseif ($status === 'joined') {
+                    $q->whereJsonContains('status_history', 'Joined')
+                      ->where(fn($q) => $q->where('is_online_abroad', '!=', 1)->orWhereNull('is_online_abroad'));
+                } elseif ($status === 'diet_chart') {
+                    $q->where(fn($q) => $q->whereJsonContains('status_history', 'Diet Chart')
+                                          ->orWhereJsonContains('status_history', 'Active'))
+                      ->where(fn($q) => $q->where('is_online_abroad', '!=', 1)->orWhereNull('is_online_abroad'));
+                } elseif ($status === 'online_abroad') {
+                    $q->where('is_online_abroad', 1);
+                }
+                $accCount = $q->count();
             }
 
-            $acccount = $accQuery->count();
-
-            $totalCount = $patientInquiryCount + $lhrCount + $hydraCount + $acccount;
+            $totalCount = $patientInquiryCount + $lhrCount + $hydraCount + $accCount;
 
             return response()->json([
-                'success' => true,
+                'success'       => true,
                 'patient_count' => $totalCount,
-                'branch_id' => $branchId,
-                'branch_name' => $branchName,
-                'breakdown' => [
+                'branch_id'     => $branchId,
+                'branch_name'   => $branchName,
+                'breakdown'     => [
                     'patient_inquiry' => $patientInquiryCount,
-                    'lhr_inquiries' => $lhrCount,
+                    'lhr_inquiries'   => $lhrCount,
                     'hydra_inquiries' => $hydraCount,
-                    'acc_inquirys'  => $acccount
+                    'acc_inquirys'    => $accCount,
                 ],
-                'message' => 'Total patients count from all sources'
             ]);
         } catch (\Exception $e) {
             Log::error('Error in getTotalPatients: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'patient_count' => 0,
-                'error' => $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'patient_count' => 0, 'error' => $e->getMessage()], 500);
         }
     }
 
@@ -693,20 +648,68 @@ class PatientController extends Controller
 
             $monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-            // patient_inquiry (SVC branch patients)
-            $piQ = DB::table('patient_inquiry')
-                ->selectRaw("MONTH(created_at) as month, COUNT(*) as total")
-                ->whereYear('created_at', $year);
-            if ($branchId) $piQ->where('branch_id', $branchId);
-            $piMonthly = $piQ->groupByRaw('MONTH(created_at)')->pluck('total', 'month')->toArray();
+            // Branch type routing - avoid cross-table over-counting
+            $lhrBranchIds   = ['LB-0007'];
+            $hydraBranchIds = ['BH-00023'];
+            $svcBranchIds   = ['SVC-0005'];
+            $isLHR   = $branchId && in_array($branchId, $lhrBranchIds);
+            $isHydra = $branchId && in_array($branchId, $hydraBranchIds);
+            $isSVC   = $branchId && in_array($branchId, $svcBranchIds);
+            $isFNF   = $branchId && !$isLHR && !$isHydra && !$isSVC;
+            $isAll   = !$branchId; // superadmin, no branch filter
 
-            // acc_inquirys (FNF/Diet Chart patients)
-            $accQ = DB::table('acc_inquirys')
-                ->selectRaw("MONTH(created_at) as month, COUNT(*) as total")
-                ->whereYear('created_at', $year)
-                ->where('delete_status', '0');
-            if ($branchId) $accQ->where('branch_id', $branchId);
-            $accMonthly = $accQ->groupByRaw('MONTH(created_at)')->pluck('total', 'month')->toArray();
+            $piMonthly    = [];
+            $accMonthly   = [];
+            $lhrMonthly   = [];
+            $hydraMonthly = [];
+
+            // SVC patients (patient_inquiry) - handle both date formats
+            if ($isSVC || $isAll) {
+                $dateExpr = "CASE 
+                    WHEN inquiry_date REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN inquiry_date
+                    WHEN inquiry_date REGEXP '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$' THEN STR_TO_DATE(inquiry_date, '%d/%m/%Y')
+                    ELSE created_at END";
+                $q = DB::table('patient_inquiry')
+                    ->selectRaw("MONTH($dateExpr) as month, COUNT(*) as total")
+                    ->whereRaw("YEAR($dateExpr) = ?", [$year]);
+                if ($branchId) $q->where('branch_id', $branchId);
+                $piMonthly = $q->groupByRaw('month')->pluck('total', 'month')->toArray();
+            }
+
+            // FNF/ACC patients (acc_inquirys) - use inquiry_date, handle both Y-m-d and d/m/Y formats
+            if ($isFNF || $isAll) {
+                $q = DB::table('acc_inquirys')
+                    ->selectRaw("MONTH(CASE 
+                        WHEN inquiry_date REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN inquiry_date
+                        WHEN inquiry_date REGEXP '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$' THEN STR_TO_DATE(inquiry_date, '%d/%m/%Y')
+                        ELSE NULL END) as month, COUNT(*) as total")
+                    ->whereRaw("YEAR(CASE 
+                        WHEN inquiry_date REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN inquiry_date
+                        WHEN inquiry_date REGEXP '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$' THEN STR_TO_DATE(inquiry_date, '%d/%m/%Y')
+                        ELSE NULL END) = ?", [$year])
+                    ->where('delete_status', '0');
+                if ($branchId) $q->where('branch_id', $branchId);
+                $accMonthly = $q->groupByRaw('month')->pluck('total', 'month')->toArray();
+            }
+
+            // LHR patients (lhr_inquiries)
+            if ($isLHR || $isAll) {
+                $q = DB::table('lhr_inquiries')
+                    ->selectRaw("MONTH(created_at) as month, COUNT(*) as total")
+                    ->whereYear('created_at', $year)
+                    ->whereNull('deleted_at');
+                if ($branchId) $q->where('branch_id', $branchId);
+                $lhrMonthly = $q->groupByRaw('MONTH(created_at)')->pluck('total', 'month')->toArray();
+            }
+
+            // Hydra patients (hydra_inquiries)
+            if ($isHydra || $isAll) {
+                $q = DB::table('hydra_inquiries')
+                    ->selectRaw("MONTH(created_at) as month, COUNT(*) as total")
+                    ->whereYear('created_at', $year);
+                if ($branchId) $q->where('branch_id', $branchId);
+                $hydraMonthly = $q->groupByRaw('MONTH(created_at)')->pluck('total', 'month')->toArray();
+            }
 
             // Build 12 months
             $months    = [];
@@ -715,34 +718,73 @@ class PatientController extends Controller
             $maxCount  = 0;
 
             for ($m = 1; $m <= 12; $m++) {
-                $count     = ($piMonthly[$m] ?? 0) + ($accMonthly[$m] ?? 0);
+                $count = ($piMonthly[$m] ?? 0) + ($accMonthly[$m] ?? 0)
+                       + ($lhrMonthly[$m] ?? 0) + ($hydraMonthly[$m] ?? 0);
                 $months[]  = ['month' => $m, 'label' => $monthNames[$m - 1], 'count' => $count];
                 $totalYear += $count;
                 if ($count > $maxCount) { $maxCount = $count; $maxMonth = $m; }
             }
 
-            // Top diagnoses this year
-            $diagQ = DB::table('patient_inquiry')
-                ->selectRaw("diagnosis, COUNT(*) as cnt")
-                ->whereYear('created_at', $year)
-                ->whereNotNull('diagnosis')
-                ->where('diagnosis', '!=', '');
-            if ($branchId) $diagQ->where('branch_id', $branchId);
-            $rawDiags = $diagQ->groupBy('diagnosis')->orderByDesc('cnt')->limit(50)->get();
-
+            // Top diagnoses this year - from relevant table
             $diagMap = [];
-            foreach ($rawDiags as $row) {
-                foreach (array_filter(array_map('trim', explode(',', $row->diagnosis))) as $d) {
-                    $diagMap[$d] = ($diagMap[$d] ?? 0) + $row->cnt;
+            if ($isSVC || $isAll) {
+                $q = DB::table('patient_inquiry')
+                    ->selectRaw("diagnosis, COUNT(*) as cnt")
+                    ->whereYear('created_at', $year)
+                    ->whereNotNull('diagnosis')->where('diagnosis', '!=', '');
+                if ($branchId) $q->where('branch_id', $branchId);
+                foreach ($q->groupBy('diagnosis')->orderByDesc('cnt')->limit(50)->get() as $row) {
+                    foreach (array_filter(array_map('trim', explode(',', $row->diagnosis))) as $d) {
+                        $diagMap[$d] = ($diagMap[$d] ?? 0) + $row->cnt;
+                    }
+                }
+            }
+            if ($isFNF || $isAll) {
+                $q = DB::table('acc_inquirys')
+                    ->selectRaw("diagnosis, COUNT(*) as cnt")
+                    ->whereRaw("YEAR(CASE 
+                        WHEN inquiry_date REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN inquiry_date
+                        WHEN inquiry_date REGEXP '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$' THEN STR_TO_DATE(inquiry_date, '%d/%m/%Y')
+                        ELSE NULL END) = ?", [$year])
+                    ->where('delete_status', '0')
+                    ->whereNotNull('diagnosis')->where('diagnosis', '!=', '');
+                if ($branchId) $q->where('branch_id', $branchId);
+                foreach ($q->groupBy('diagnosis')->orderByDesc('cnt')->limit(50)->get() as $row) {
+                    foreach (array_filter(array_map('trim', explode(',', $row->diagnosis))) as $d) {
+                        $diagMap[$d] = ($diagMap[$d] ?? 0) + $row->cnt;
+                    }
                 }
             }
             arsort($diagMap);
             $topDiagnoses = array_slice($diagMap, 0, 8, true);
 
-            // Last year total for YoY
-            $lyQ = DB::table('patient_inquiry')->selectRaw("COUNT(*) as total")->whereYear('created_at', $year - 1);
-            if ($branchId) $lyQ->where('branch_id', $branchId);
-            $lastYearTotal = $lyQ->value('total') ?? 0;
+            // Last year total for YoY - same table routing
+            $lastYearTotal = 0;
+            if ($isSVC || $isAll) {
+                $q = DB::table('patient_inquiry')->selectRaw("COUNT(*) as total")->whereYear('created_at', $year - 1);
+                if ($branchId) $q->where('branch_id', $branchId);
+                $lastYearTotal += (int)($q->value('total') ?? 0);
+            }
+            if ($isFNF || $isAll) {
+                $q = DB::table('acc_inquirys')->selectRaw("COUNT(*) as total")
+                    ->whereRaw("YEAR(CASE 
+                        WHEN inquiry_date REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' THEN inquiry_date
+                        WHEN inquiry_date REGEXP '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}$' THEN STR_TO_DATE(inquiry_date, '%d/%m/%Y')
+                        ELSE NULL END) = ?", [$year - 1])
+                    ->where('delete_status', '0');
+                if ($branchId) $q->where('branch_id', $branchId);
+                $lastYearTotal += (int)($q->value('total') ?? 0);
+            }
+            if ($isLHR || $isAll) {
+                $q = DB::table('lhr_inquiries')->selectRaw("COUNT(*) as total")->whereYear('created_at', $year - 1)->whereNull('deleted_at');
+                if ($branchId) $q->where('branch_id', $branchId);
+                $lastYearTotal += (int)($q->value('total') ?? 0);
+            }
+            if ($isHydra || $isAll) {
+                $q = DB::table('hydra_inquiries')->selectRaw("COUNT(*) as total")->whereYear('created_at', $year - 1);
+                if ($branchId) $q->where('branch_id', $branchId);
+                $lastYearTotal += (int)($q->value('total') ?? 0);
+            }
 
             $growth      = $lastYearTotal > 0 ? round((($totalYear - $lastYearTotal) / $lastYearTotal) * 100, 1) : null;
             $currentMonth = now()->year == $year ? now()->month : 12;

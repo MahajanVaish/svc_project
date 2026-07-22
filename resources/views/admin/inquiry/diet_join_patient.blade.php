@@ -355,6 +355,7 @@
             <input type="hidden" name="branch_id" value="{{ $patient->branch_id ?? '' }}">
             <input type="hidden" name="branch" value="{{ $patient->branch ?? '' }}">
             <input type="hidden" name="latest_opt_id" value="{{ $latestOpt->id ?? '' }}">
+            <input type="hidden" name="redirect_to" value="{{ $redirect_to ?? '' }}">
 
             <div class="row">
                 <div class="col-12 mb-4">

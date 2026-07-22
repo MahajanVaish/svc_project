@@ -52,6 +52,7 @@
             <input type="hidden" name="patient_name" value="{{ $patient->patient_name ?? '' }}">
             <input type="hidden" name="branch_id" value="{{ $patient->branch_id ?? '' }}">
             <input type="hidden" name="branch" value="{{ $patient->branch ?? '' }}">
+            <input type="hidden" name="redirect_to" value="{{ $redirect_to ?? '' }}">
 
             <div class="card">
                 <div class="card-body">

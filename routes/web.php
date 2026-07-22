@@ -247,6 +247,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/admin/diet-chart/search', [InquiryDietChartController::class, 'dietChartSearch'])->name('diet.chart.search');
     Route::get('/admin/add-inquiry', [InquiryDietChartController::class, 'create'])->name('add.inquiry');
     Route::post('/admin/add-inquiry', [InquiryDietChartController::class, 'store'])->name('store.inquiry');
+    Route::get('/admin/inquiry/{id}/edit', [InquiryDietChartController::class, 'edit'])->name('inquiry.edit');
+    Route::post('/admin/inquiry/{id}/update', [InquiryDietChartController::class, 'update'])->name('inquiry.update');
     Route::get('/admin/get-patients-by-branch', [InquiryDietChartController::class, 'getPatientsByBranch'])->name('get.patients.by.branch');
     Route::get('/export-inquiries', [InquiryDietChartController::class, 'export'])->name('export.inquiries');
     Route::delete('/admin/delete-inquiry/{id}', [InquiryDietChartController::class, 'destroy'])->name('delete.inquiry');
@@ -412,3 +414,105 @@ Route::get('/download-invoice/{id}', [InvoiceController::class, 'downloadInvoice
 Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.forgot');
 Route::post('/forgot-password/verify-email', [AuthController::class, 'verifyEmail'])->name('password.verify-email');
 Route::post('/forgot-password/update', [AuthController::class, 'updateForgotPassword'])->name('password.update');
+
+Route::get('/run-migration-now', function () {
+    echo "<pre>=== Starting DB Migration via Route ===\n";
+    try {
+        // 1. Add columns to acc_inquirys
+        \Illuminate\Support\Facades\Schema::table('acc_inquirys', function (\Illuminate\Database\Schema\Blueprint $table) {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('acc_inquirys', 'diet')) {
+                $table->text('diet')->nullable();
+                echo "Added column 'diet' to acc_inquirys\n";
+            }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('acc_inquirys', 'exercise')) {
+                $table->text('exercise')->nullable();
+                echo "Added column 'exercise' to acc_inquirys\n";
+            }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('acc_inquirys', 'sleep')) {
+                $table->text('sleep')->nullable();
+                echo "Added column 'sleep' to acc_inquirys\n";
+            }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('acc_inquirys', 'water')) {
+                $table->text('water')->nullable();
+                echo "Added column 'water' to acc_inquirys\n";
+            }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('acc_inquirys', 'joined_program_ids')) {
+                $table->text('joined_program_ids')->nullable();
+                echo "Added column 'joined_program_ids' to acc_inquirys\n";
+            }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('acc_inquirys', 'programs_array')) {
+                $table->text('programs_array')->nullable();
+                echo "Added column 'programs_array' to acc_inquirys\n";
+            }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('acc_inquirys', 'cash_payment')) {
+                $table->text('cash_payment')->nullable();
+                echo "Added column 'cash_payment' to acc_inquirys\n";
+            }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('acc_inquirys', 'gpay_payment')) {
+                $table->text('gpay_payment')->nullable();
+                echo "Added column 'gpay_payment' to acc_inquirys\n";
+            }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('acc_inquirys', 'cheque_payment')) {
+                $table->text('cheque_payment')->nullable();
+                echo "Added column 'cheque_payment' to acc_inquirys\n";
+            }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('acc_inquirys', 'due_payment')) {
+                $table->text('due_payment')->nullable();
+                echo "Added column 'due_payment' to acc_inquirys\n";
+            }
+        });
+
+        // 2. Migrate legacy data from opts + opt_meta to acc_inquirys
+        $inquiries = \Illuminate\Support\Facades\DB::table('acc_inquirys')->get();
+        $migratedCount = 0;
+        foreach ($inquiries as $inquiry) {
+            $opt = \Illuminate\Support\Facades\DB::table('opts')
+                ->where('patient_id', $inquiry->patient_id)
+                ->where(function ($q) {
+                    $q->whereNull('delete_status')
+                      ->orWhere('delete_status', '')
+                      ->orWhere('delete_status', '0');
+                })
+                ->orderByDesc('id')
+                ->first();
+
+            if (!$opt && !empty($inquiry->id)) {
+                $opt = \Illuminate\Support\Facades\DB::table('opts')
+                    ->where('patient_id', (string)$inquiry->id)
+                    ->where(function ($q) {
+                        $q->whereNull('delete_status')
+                          ->orWhere('delete_status', '')
+                          ->orWhere('delete_status', '0');
+                    })
+                    ->orderByDesc('id')
+                    ->first();
+            }
+
+            if ($opt) {
+                $metas = \Illuminate\Support\Facades\DB::table('opt_meta')
+                    ->where('opt_id', $opt->id)
+                    ->get()
+                    ->pluck('meta_value', 'meta_key')
+                    ->toArray();
+
+                $updateData = [];
+                $fields = ['diet', 'exercise', 'sleep', 'water', 'joined_program_ids', 'programs_array', 'cash_payment', 'gpay_payment', 'cheque_payment', 'due_payment', 'inquiry_foc'];
+                
+                foreach ($fields as $field) {
+                    if (isset($metas[$field]) && $metas[$field] !== '') {
+                        $updateData[$field] = $metas[$field];
+                    }
+                }
+
+                if (!empty($updateData)) {
+                    \Illuminate\Support\Facades\DB::table('acc_inquirys')->where('id', $inquiry->id)->update($updateData);
+                    $migratedCount++;
+                }
+            }
+        }
+        echo "=== Migration Complete ===\n";
+        echo "Successfully migrated data for {$migratedCount} patients!\n";
+    } catch (\Exception $e) {
+        echo "ERROR: " . $e->getMessage() . "\n";
+    }
+});
