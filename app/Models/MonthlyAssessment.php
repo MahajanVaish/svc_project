@@ -92,6 +92,30 @@ class MonthlyAssessment extends Model
         return $this->belongsTo(PatientInquiry::class, 'patient_inquiry_id');
     }
 
+    /**
+     * Resolve patient from PatientInquiry or AccInquiry using both Integer ID and String patient_id
+     */
+    public function getResolvedPatientAttribute()
+    {
+        if (!empty($this->patient_inquiry_id)) {
+            $patient = PatientInquiry::find($this->patient_inquiry_id);
+            if ($patient) return $patient;
+
+            $acc = AccInquiry::find($this->patient_inquiry_id);
+            if ($acc) return $acc;
+        }
+
+        if (!empty($this->patient_id)) {
+            $acc = AccInquiry::where('patient_id', $this->patient_id)->first();
+            if ($acc) return $acc;
+
+            $patient = PatientInquiry::where('patient_id', $this->patient_id)->first();
+            if ($patient) return $patient;
+        }
+
+        return null;
+    }
+
     // Scope for active records
     public function scopeActive($query)
     {

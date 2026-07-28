@@ -27,6 +27,7 @@ class LhrFollowup extends Model
 
 
     protected $fillable = [
+        'inquiry_id',
         'patient_id',
         'branch_id',
         'branch',
@@ -79,11 +80,14 @@ class LhrFollowup extends Model
     ];
 
     /**
-     * Get the inquiry that owns the follow up.
+     * Get the inquiry that owns the follow up (supports both inquiry_id and patient_id code).
      */
     public function inquiry(): BelongsTo
     {
-        return $this->belongsTo(LHRInquiry::class , 'inquiry_id');
+        if (!empty($this->inquiry_id)) {
+            return $this->belongsTo(LHRInquiry::class, 'inquiry_id');
+        }
+        return $this->belongsTo(LHRInquiry::class, 'patient_id', 'patient_id');
     }
 
     /**
@@ -173,11 +177,14 @@ class LhrFollowup extends Model
     }
 
     /**
-     * Scope a query to filter by inquiry.
+     * Scope a query to filter by inquiry (supports both inquiry_id and patient_id).
      */
     public function scopeByInquiry($query, $inquiryId)
     {
-        return $query->where('inquiry_id', $inquiryId);
+        return $query->where(function($q) use ($inquiryId) {
+            $q->where('inquiry_id', $inquiryId)
+              ->orWhere('patient_id', (string)$inquiryId);
+        });
     }
 
     /**

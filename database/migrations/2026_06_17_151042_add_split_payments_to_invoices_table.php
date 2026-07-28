@@ -12,9 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('invoices', function (Blueprint $table) {
-            $table->decimal('cash_payment', 10, 2)->default(0);
-            $table->decimal('gpay_payment', 10, 2)->default(0);
-            $table->decimal('cheque_payment', 10, 2)->default(0);
+            if (!Schema::hasColumn('invoices', 'cash_payment')) {
+                $table->decimal('cash_payment', 10, 2)->default(0);
+            }
+            if (!Schema::hasColumn('invoices', 'gpay_payment')) {
+                $table->decimal('gpay_payment', 10, 2)->default(0);
+            }
+            if (!Schema::hasColumn('invoices', 'cheque_payment')) {
+                $table->decimal('cheque_payment', 10, 2)->default(0);
+            }
         });
     }
 

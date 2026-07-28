@@ -172,11 +172,7 @@
                                     timer: 2000,
                                     timerProgressBar: true
                                 }).then(() => {
-                                    if (typeof performSearch === 'function') {
-                                        performSearch($('#liveSearch').val());
-                                    } else {
-                                        location.reload();
-                                    }
+                                    window.location.href = "{{ route('followup.patients.appointment') }}";
                                 });
                             } else {
                                 Swal.fire({

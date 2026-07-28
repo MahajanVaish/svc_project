@@ -67,6 +67,29 @@ class Progress extends Model
     {
         return $this->belongsTo(PatientInquiry::class, 'patient_id', 'patient_id');
     }
+
+    /**
+     * Resolve patient from PatientInquiry or AccInquiry
+     */
+    public function getResolvedPatientAttribute()
+    {
+        if (!empty($this->patient_id)) {
+            $p = PatientInquiry::where('patient_id', $this->patient_id)->first();
+            if ($p) return $p;
+
+            $acc = AccInquiry::where('patient_id', $this->patient_id)->first();
+            if ($acc) return $acc;
+
+            if (is_numeric($this->patient_id)) {
+                $acc = AccInquiry::find((int)$this->patient_id);
+                if ($acc) return $acc;
+
+                $p = PatientInquiry::find((int)$this->patient_id);
+                if ($p) return $p;
+            }
+        }
+        return null;
+    }
     
     public function branch()
     {

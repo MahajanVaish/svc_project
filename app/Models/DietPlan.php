@@ -50,6 +50,29 @@ class DietPlan extends Model
     }
 
     /**
+     * Resolve patient details from PatientInquiry or AccInquiry using String or Integer ID
+     */
+    public function getResolvedPatientAttribute()
+    {
+        if (!empty($this->patient_id)) {
+            $p = PatientInquiry::where('patient_id', $this->patient_id)->first();
+            if ($p) return $p;
+
+            $acc = AccInquiry::where('patient_id', $this->patient_id)->first();
+            if ($acc) return $acc;
+
+            if (is_numeric($this->patient_id)) {
+                $acc = AccInquiry::find((int)$this->patient_id);
+                if ($acc) return $acc;
+
+                $p = PatientInquiry::find((int)$this->patient_id);
+                if ($p) return $p;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Get branch details
      */
     public function branch()

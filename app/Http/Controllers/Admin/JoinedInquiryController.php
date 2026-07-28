@@ -12,7 +12,10 @@ class JoinedInquiryController extends Controller
     {
         // Show inquiries that have 'Joined' in their status_history 
         $query = AccInquiry::where('delete_status', '0')
-            ->whereJsonContains('status_history', 'Joined')
+            ->where(function ($sq) {
+                $sq->whereJsonContains('status_history', 'Joined')
+                   ->orWhere('status_history', 'like', '%Joined%');
+            })
             ->where(function ($q) {
                 $q->where('is_online_abroad', '!=', 1)
                   ->orWhereNull('is_online_abroad');
@@ -60,7 +63,10 @@ class JoinedInquiryController extends Controller
     public function exportJoinedInquiries(Request $request)
     {
         $query = AccInquiry::where('delete_status', '0')
-            ->whereJsonContains('status_history', 'Joined')
+            ->where(function ($sq) {
+                $sq->whereJsonContains('status_history', 'Joined')
+                   ->orWhere('status_history', 'like', '%Joined%');
+            })
             ->where(function ($q) {
                 $q->where('is_online_abroad', '!=', 1)
                   ->orWhereNull('is_online_abroad');

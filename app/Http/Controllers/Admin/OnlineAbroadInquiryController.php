@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AccInquiry;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class OnlineAbroadInquiryController extends Controller
 {
@@ -18,7 +19,12 @@ class OnlineAbroadInquiryController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('patient_id', 'like', '%' . $search . '%')
+                    ->orWhere('id', 'like', '%' . $search . '%')
                     ->orWhere('patient_f_name', 'like', '%' . $search . '%')
+                    ->orWhere('patient_m_name', 'like', '%' . $search . '%')
+                    ->orWhere('patient_l_name', 'like', '%' . $search . '%')
+                    ->orWhere(DB::raw("CONCAT(COALESCE(patient_f_name,''), ' ', COALESCE(patient_l_name,''))"), 'like', '%' . $search . '%')
+                    ->orWhere(DB::raw("CONCAT(COALESCE(patient_f_name,''), ' ', COALESCE(patient_m_name,''), ' ', COALESCE(patient_l_name,''))"), 'like', '%' . $search . '%')
                     ->orWhere('phone_no', 'like', '%' . $search . '%')
                     ->orWhere('address', 'like', '%' . $search . '%')
                     ->orWhere('diagnosis', 'like', '%' . $search . '%')

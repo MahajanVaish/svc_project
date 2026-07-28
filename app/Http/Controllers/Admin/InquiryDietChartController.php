@@ -48,7 +48,12 @@ class InquiryDietChartController extends Controller
         $search = $request->search;
         $query->where(function ($q) use ($search) {
             $q->where('patient_id', 'like', "%$search%")
+              ->orWhere('id', 'like', "%$search%")
               ->orWhere('patient_f_name', 'like', "%$search%")
+              ->orWhere('patient_m_name', 'like', "%$search%")
+              ->orWhere('patient_l_name', 'like', "%$search%")
+              ->orWhere(DB::raw("CONCAT(COALESCE(patient_f_name,''), ' ', COALESCE(patient_l_name,''))"), 'like', "%$search%")
+              ->orWhere(DB::raw("CONCAT(COALESCE(patient_f_name,''), ' ', COALESCE(patient_m_name,''), ' ', COALESCE(patient_l_name,''))"), 'like', "%$search%")
               ->orWhere('phone_no', 'like', "%$search%")
               ->orWhere('address', 'like', "%$search%")
               ->orWhere('diagnosis', 'like', "%$search%");
@@ -56,46 +61,17 @@ class InquiryDietChartController extends Controller
     }
 
     $inquiries = $query->orderBy('id', 'desc')->paginate(10);
+
+    if ($request->ajax()) {
+        return view('admin.inquiry.diet_chart_table', compact('inquiries'))->render();
+    }
 
     return view('admin.inquiry.patient_diet_chart', compact('inquiries'));
 }
 
 public function dietChartSearch(Request $request)
 {
-    $query = AccInquiry::where(function ($q) {
-            $q->whereNull('delete_status')
-              ->orWhere('delete_status', '0');
-        })
-        ->where(function ($q) {
-            $q->whereJsonContains('status_history', 'Diet Chart')
-              ->orWhereJsonContains('status_history', 'Active')
-              ->orWhere(function ($sub) {
-                  $sub->where(function ($s) {
-                          $s->whereNull('status_history')
-                            ->orWhere('status_history', '')
-                            ->orWhere('status_history', '[]');
-                      })
-                      ->where(function ($s) {
-                          $s->where('user_status', 'Diet Chart')
-                            ->orWhere('user_status', 'Active');
-                      });
-              });
-        });
-
-    if ($request->filled('search')) {
-        $search = $request->search;
-        $query->where(function ($q) use ($search) {
-            $q->where('patient_id', 'like', "%$search%")
-              ->orWhere('patient_f_name', 'like', "%$search%")
-              ->orWhere('phone_no', 'like', "%$search%")
-              ->orWhere('address', 'like', "%$search%")
-              ->orWhere('diagnosis', 'like', "%$search%");
-        });
-    }
-
-    $inquiries = $query->orderBy('id', 'desc')->paginate(10);
-
-    return view('admin.inquiry.diet_chart_table', compact('inquiries'));
+    return $this->dietChart($request);
 }
 
     public function create(Request $request)
@@ -1285,8 +1261,13 @@ public function dietChartSearch(Request $request)
                 ->orderByDesc('id')
                 ->get();
 
-            // Fetch measurement history (monthly assessments for this patient)
-            $measurements = \App\Models\MonthlyAssessment::where('patient_inquiry_id', $patient->id)
+            // Fetch measurement history (monthly assessments for this patient, supporting both Int ID & String Code)
+            $measurements = \App\Models\MonthlyAssessment::where(function($mq) use ($patient) {
+                    $mq->where('patient_inquiry_id', $patient->id);
+                    if (!empty($patient->patient_id)) {
+                        $mq->orWhere('patient_id', $patient->patient_id);
+                    }
+                })
                 ->active()
                 ->orderByDesc('assessment_date')
                 ->get();
