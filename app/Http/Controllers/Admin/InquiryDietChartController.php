@@ -3310,10 +3310,16 @@ private function getAllImages($optId, $type = 'before')
                 ], 422);
             }
 
-            // Get current status_history and remove Diet Chart / Joined / Active
+            // Get current status_history and remove all variations of Diet Chart / Joined / Active
             $statusHistory = $inquiry->status_history ?? [];
-            $statusHistory = array_values(array_filter($statusHistory, function ($s) {
-                return !in_array($s, ['Diet Chart', 'Joined', 'Active']);
+            if (is_string($statusHistory)) {
+                $statusHistory = json_decode($statusHistory, true) ?: [$statusHistory];
+            }
+
+            $statusHistory = array_values(array_filter((array) $statusHistory, function ($s) {
+                if (!is_string($s)) return false;
+                $clean = strtolower(trim($s));
+                return !in_array($clean, ['diet chart', 'diet_chart', 'dietchart', 'joined', 'active']);
             }));
 
             // Ensure "Pending" is in the history

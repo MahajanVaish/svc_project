@@ -13,6 +13,11 @@ class AuthController extends Controller
     // Show register form
     public function showRegister()
     {
+        if (Auth::check()) {
+            $user = Auth::user();
+            return $user->hasRole('Superadmin') ? redirect()->route('admin.dashboard') : redirect()->route('diet.chart');
+        }
+
         $branches = Branch::orderBy('branch_name')->get();
 
         return view('auth.register', compact('branches'));
@@ -26,28 +31,30 @@ class AuthController extends Controller
             'email' => 'required|email|unique:users',
             'password' => 'required|min:6|confirmed',
             'branch_id' => 'required|exists:branches,id',
-
         ]);
 
-        User::create([
+        $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'branch_id' => $request->branch_id,
-
         ]);
-        return redirect()->route('show-login');
 
+        return redirect()->route('show-login')->with('success', 'Account registered successfully! Please log in to continue.');
     }
 
     // Show login form
     public function showLogin()
     {
+        if (Auth::check()) {
+            $user = Auth::user();
+            return $user->hasRole('Superadmin') ? redirect()->route('admin.dashboard') : redirect()->route('diet.chart');
+        }
+
         return view('auth.login');
     }
 
     // Handle login
-
     public function login(Request $request)
     {
         $credentials = $request->validate([
@@ -55,20 +62,16 @@ class AuthController extends Controller
             'password' => 'required',
         ]);
 
-        if (Auth::attempt($credentials)) {
+        $remember = $request->has('remember');
+
+        if (Auth::attempt($credentials, $remember)) {
             $request->session()->regenerate();
-
             $user = Auth::user();
-
-            // Redirect by role
-            if ($user->hasRole('Superadmin')) {
-                return redirect()->route('admin.dashboard');
-            }
-
-            return redirect('/dashboard');
+            return $user->hasRole('Superadmin') ? redirect()->route('admin.dashboard') : redirect()->route('diet.chart');
         }
 
-        return back()->withErrors(['email' => 'Invalid credentials.']);
+        return back()->withInput($request->only('email', 'remember'))
+            ->withErrors(['email' => 'Invalid email address or password. Please check your credentials.']);
     }
 
     // Handle logout

@@ -30,9 +30,17 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/login', function () {
+    if (Auth::check()) {
+        $user = Auth::user();
+        return $user->hasRole('Superadmin') ? redirect()->route('admin.dashboard') : redirect()->route('diet.chart');
+    }
     return redirect('/show-login');
 });
 Route::get('/', function () {
+    if (Auth::check()) {
+        $user = Auth::user();
+        return $user->hasRole('Superadmin') ? redirect()->route('admin.dashboard') : redirect()->route('diet.chart');
+    }
     return redirect('/show-login');
 });
 

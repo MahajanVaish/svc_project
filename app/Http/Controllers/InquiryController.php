@@ -19,13 +19,21 @@ class InquiryController extends Controller
             $searchName = $request->input('search_name');
             $perPage = $request->input('per_page', 10);
 
-            // Query for follow-up patients from AccInquiry
+            // Query for follow-up patients from AccInquiry (excluding active Diet Chart & Joined patients)
             $query = AccInquiry::where(function ($q) {
                     $q->whereNull('delete_status')
                       ->orWhere('delete_status', '0');
                 })
                 ->whereNotNull('next_followup_date')
                 ->where('next_followup_date', '>=', Carbon::today()->format('Y-m-d'))
+                ->where(function ($q) {
+                    $q->whereJsonDoesntContain('status_history', 'Diet Chart')
+                      ->whereJsonDoesntContain('status_history', 'Joined')
+                      ->where(function ($sub) {
+                          $sub->whereNull('user_status')
+                              ->orWhereNotIn('user_status', ['Diet Chart', 'Joined', 'Active']);
+                      });
+                })
                 ->orderBy('next_followup_date', 'asc')
                 ->orderBy('patient_f_name', 'asc');
 
