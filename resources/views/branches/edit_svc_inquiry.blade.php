@@ -1570,6 +1570,23 @@
 
                                     <div class="pt-4">
                                         <div id="paymentRow" style="{{ ($patient->getMeta('foc') == 'on' || $patient->getMeta('inquiry_foc') == 'Yes') ? 'display: none;' : '' }}">
+                                            @php
+                                                 $givenVal  = (float) ($patient->getMeta('given_payment') ?? 0);
+                                                 $cashVal   = $patient->getMeta('cash_payment');
+                                                 $gpVal     = $patient->getMeta('gp_payment');
+                                                 $chequeVal = $patient->getMeta('cheque_payment');
+                                                 $methodVal = $patient->getMeta('payment_method');
+
+                                                 if (($cashVal === null || $cashVal === '') && ($gpVal === null || $gpVal === '') && ($chequeVal === null || $chequeVal === '') && $givenVal > 0) {
+                                                     if ($methodVal === 'Online') {
+                                                         $gpVal = $givenVal;
+                                                     } elseif ($methodVal === 'Cheque') {
+                                                         $chequeVal = $givenVal;
+                                                     } else {
+                                                         $cashVal = $givenVal;
+                                                     }
+                                                 }
+                                             @endphp
 
                                             {{-- ── Registration Charges (multi-select repeater) ── --}}
                                             <div class="pro_filed d-sm-block d-md-flex">
@@ -1612,7 +1629,7 @@
                                                         <label for="given_payment">Paid Amount (₹)</label>
                                                         <input type="number" id="given_payment" name="given_payment"
                                                             placeholder="0.00" step="0.01" readonly style="background-color: #f8f9fa;"
-                                                            value="{{ $patient->getMeta('given_payment') }}">
+                                                            value="{{ number_format($givenVal, 2, '.', '') }}">
                                                     </div>
                                                 </div>
                                             </div>
@@ -1623,7 +1640,7 @@
                                                         <label for="cash_payment">Cash Payment (₹)</label>
                                                         <input type="number" id="cash_payment" name="cash_payment"
                                                             placeholder="0.00" step="0.01"
-                                                            value="{{ $patient->getMeta('cash_payment') ?? '' }}">
+                                                            value="{{ $cashVal !== null && $cashVal !== '' ? number_format((float)$cashVal, 2, '.', '') : '' }}">
                                                     </div>
                                                 </div>
                                                 <div class="form">
@@ -1631,7 +1648,7 @@
                                                         <label for="gp_payment">G-Pay (₹)</label>
                                                         <input type="number" id="gp_payment" name="gp_payment"
                                                             placeholder="0.00" step="0.01"
-                                                            value="{{ $patient->getMeta('gp_payment') ?? '' }}">
+                                                            value="{{ $gpVal !== null && $gpVal !== '' ? number_format((float)$gpVal, 2, '.', '') : '' }}">
                                                     </div>
                                                 </div>
                                                 <div class="form">
@@ -1639,7 +1656,7 @@
                                                         <label for="cheque_payment">Cheque (₹)</label>
                                                         <input type="number" id="cheque_payment" name="cheque_payment"
                                                             placeholder="0.00" step="0.01"
-                                                            value="{{ $patient->getMeta('cheque_payment') ?? '' }}">
+                                                            value="{{ $chequeVal !== null && $chequeVal !== '' ? number_format((float)$chequeVal, 2, '.', '') : '' }}">
                                                     </div>
                                                 </div>
                                                 <div class="form">
@@ -1712,7 +1729,14 @@
                                             const gpay = parseFloat(gpayInput?.value) || 0;
                                             const cheque = parseFloat(chequeInput?.value) || 0;
                                             
-                                            if (givenInput) givenInput.value = (cash + gpay + cheque).toFixed(2);
+                                            const totalBreakdown = cash + gpay + cheque;
+                                            const hasBreakdownInput = (cashInput && cashInput.value !== '') || 
+                                                                      (gpayInput && gpayInput.value !== '') || 
+                                                                      (chequeInput && chequeInput.value !== '');
+                                            
+                                            if (hasBreakdownInput) {
+                                                if (givenInput) givenInput.value = totalBreakdown.toFixed(2);
+                                            }
                                             
                                             const total    = parseFloat(totalPaymentInput?.value) || 0;
                                             const discount = parseFloat(discountInput?.value) || 0;
@@ -1959,10 +1983,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 cancelButtonText: 'Cancel'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Show loading
-                    const originalText = submitBtn.innerHTML;
-                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Updating...';
-                    submitBtn.disabled = true;
+                    // Show loading safely
+                    const targetBtn = submitBtn || form.querySelector('button[type="submit"]') || document.getElementById('submitBtn');
+                    const originalText = targetBtn ? targetBtn.innerHTML : 'Update Inquiry';
+                    if (targetBtn) {
+                        targetBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Updating...';
+                        targetBtn.disabled = true;
+                    }
                     
                     // Submit form
                     form.submit();

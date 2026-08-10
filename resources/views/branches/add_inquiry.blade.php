@@ -2026,7 +2026,7 @@
                                     </script>
                                     <div class="form-actions">
                                         <a href="/svc-patient" class="btn btn-secondary">Cancel</a>
-                                        <button type="submit" class="btn btn-primary">Save Inquiry</button>
+                                        <button type="submit" class="btn btn-primary" id="submitBtn">Save Inquiry</button>
                                     </div>
                                 </form>
                             </div>
@@ -2771,11 +2771,13 @@
                     cancelButtonText: 'Cancel'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        // Show loading
-                        const submitBtn = form.querySelector('button[type="submit"]');
-                        const originalText = submitBtn.innerHTML;
-                        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
-                        submitBtn.disabled = true;
+                        // Show loading safely
+                        const submitBtn = form.querySelector('button[type="submit"]') || document.getElementById('submitBtn') || form.querySelector('.btn-primary');
+                        const originalText = submitBtn ? submitBtn.innerHTML : 'Save Inquiry';
+                        if (submitBtn) {
+                            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+                            submitBtn.disabled = true;
+                        }
 
                         // Process dose containers
                         const doseContainers = document.querySelectorAll('.dose-container');
@@ -2805,8 +2807,10 @@
                         // Check if required fields have values
                         if (!diagnosisHidden || !diagnosisHidden.value.trim()) {
                             e.preventDefault();
-                            submitBtn.innerHTML = originalText;
-                            submitBtn.disabled = false;
+                            if (submitBtn) {
+                                submitBtn.innerHTML = originalText;
+                                submitBtn.disabled = false;
+                            }
                             Swal.fire({
                                 icon: 'error',
                                 title: 'Validation Error',
@@ -2822,8 +2826,10 @@
                         setTimeout(() => {
                             // Check if we're still on the same page (form submission failed)
                             if (document.contains(form)) {
-                                submitBtn.innerHTML = originalText;
-                                submitBtn.disabled = false;
+                                if (submitBtn) {
+                                    submitBtn.innerHTML = originalText;
+                                    submitBtn.disabled = false;
+                                }
                                 Swal.fire({
                                     icon: 'error',
                                     title: 'Error',

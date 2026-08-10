@@ -1289,6 +1289,24 @@
                         <hr class="my-2">
                         <div class="row">
                             <div class="col-sm-3">
+                                <p class="mb-0 profile_txt_color">Inquiry Date</p>
+                            </div>
+                            <div class="col-sm-9">
+                                <p class="text-muted mb-0 fw-semibold">{{ $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->format('d/m/Y') : '-' }}</p>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row">
+                            <div class="col-sm-3">
+                                <p class="mb-0 profile_txt_color">Phone Number</p>
+                            </div>
+                            <div class="col-sm-9">
+                                <p class="text-muted mb-0">{{ $patient->getMeta('phone') ?: ($patient->phone ?? '-') }}</p>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="row">
+                            <div class="col-sm-3">
                                 <p class="mb-0 profile_txt_color">Address</p>
                             </div>
                             <div class="col-sm-9">
@@ -1314,19 +1332,10 @@
                         <hr class="my-2">
                         <div class="row">
                             <div class="col-sm-3">
-                                <p class="mb-0 profile_txt_color">Age</p>
+                                <p class="mb-0 profile_txt_color">Age / Gender</p>
                             </div>
                             <div class="col-sm-9">
-                                <p class="text-muted mb-0">{{ $patient->age ?? '' }}</p>
-                            </div>
-                        </div>
-                        <hr class="my-2">
-                        <div class="row">
-                            <div class="col-sm-3">
-                                <p class="mb-0 profile_txt_color">Gender</p>
-                            </div>
-                            <div class="col-sm-9">
-                                <p class="text-muted mb-0">{{ $patient->getMeta('gender') ?? '' }}</p>
+                                <p class="text-muted mb-0">{{ implode(' / ', array_filter([$patient->age ?? '', $patient->getMeta('gender') ?? ''])) ?: '-' }}</p>
                             </div>
                         </div>
                         <hr class="my-2">
@@ -1336,32 +1345,6 @@
                             </div>
                             <div class="col-sm-9">
                                 <p class="text-muted mb-0">{{ $patient->getMeta('reference_by') ?? '' }}</p>
-                            </div>
-                        </div>
-                        <hr class="my-2">
-                        <div class="row">
-                            <div class="col-sm-3">
-                                <p class="mb-0 profile_txt_color">Client Type</p>
-                            </div>
-                            <div class="col-sm-9">
-                                <p class="text-muted mb-0">{{ ucfirst($patient->getMeta('client_type') ?? 'New') }}</p>
-                            </div>
-                        </div>
-                        <hr class="my-2">
-                        <div class="row">
-                            <div class="col-sm-3">
-                                <p class="mb-0 profile_txt_color">Programs Detail</p>
-                            </div>
-                            <div class="col-sm-9">
-                                <p class="text-muted mb-0">
-                                    @php
-                                        $svcPrograms = $patient->getMeta('program_name');
-                                        $svcPrograms = is_array($svcPrograms)
-                                            ? $svcPrograms
-                                            : (json_decode($svcPrograms, true) ?? [$svcPrograms]);
-                                    @endphp
-                                    {{ !empty(array_filter((array)$svcPrograms)) ? implode(', ', array_filter((array)$svcPrograms)) : '-' }}
-                                </p>
                             </div>
                         </div>
                         <hr class="my-2">
@@ -1377,53 +1360,89 @@
             <div class="profile-content">
                 <div class="profile-main">
 
-                    <!-- Inquiry Details -->
-                    <!-- <div class="row">
-                                                                                <div class="col-lg-12 p-0">
-                                                                                    <div class="card-header mb-2">
-                                                                                        <div class="section-title">
-                                                                                            <h3 class="bold font-up fnf-title">Inquiry Details</h3>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    <div class="card mb-4">
-                                                                                        <div class="card-body py-2">
-                                                                                            @php $excludedMetaKeys = ['profile_image']; @endphp
-                                                                                            @if(!empty($meta) && is_array($meta))
-                                                                                                @foreach($meta as $k => $v)
-                                                                                                    @continue(in_array($k, $excludedMetaKeys, true))
-                                                                                                    @php
-                                                                                                        $label = ucwords(str_replace(['_', '-'], ' ', (string) $k));
-                                                                                                        if (is_array($v)) {
-                                                                                                            $displayValue = implode(', ', array_filter(array_map(function ($x) {
-                                                                                                                if (is_array($x))
-                                                                                                                    return json_encode($x);
-                                                                                                                return (string) $x;
-                                                                                                            }, $v), function ($x) {
-                                                                                                                return $x !== ''; }));
-                                                                                                        } else {
-                                                                                                            $displayValue = (string) $v;
-                                                                                                        }
-                                                                                                        $displayValue = trim($displayValue);
-                                                                                                    @endphp
-                                                                                                    @if($displayValue !== '')
-                                                                                                        <div class="row">
-                                                                                                            <div class="col-sm-4">
-                                                                                                                <p class="mb-0 profile_txt_color">{{ $label }}</p>
-                                                                                                            </div>
-                                                                                                            <div class="col-sm-8">
-                                                                                                                <p class="text-muted mb-0">{{ $displayValue }}</p>
-                                                                                                            </div>
-                                                                                                        </div>
-                                                                                                        <hr class="my-2">
-                                                                                                    @endif
-                                                                                                @endforeach
-                                                                                            @else
-                                                                                                <p class="text-muted mb-0">No inquiry details found.</p>
-                                                                                            @endif
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </div> -->
+                    <!-- Inquiry Details Section -->
+                    <!-- <div class="row mb-4">
+                        <div class="col-lg-12 p-0">
+                            <div class="card-header mb-2">
+                                <div class="section-title">
+                                    <h3 class="bold font-up fnf-title"><i class="bi bi-card-checklist me-2"></i>Inquiry Details</h3>
+                                </div>
+                            </div>
+                            <div class="card shadow-sm border-0" style="background: var(--bg-card); border-radius: 10px;">
+                                <div class="card-body p-4">
+                                    <div class="row g-3">
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <label class="info-label text-muted small fw-bold text-uppercase d-block mb-1">Inquiry Date</label>
+                                            <span class="fw-semibold text-dark">{{ $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->format('d/m/Y') : '-' }}</span>
+                                        </div>
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <label class="info-label text-muted small fw-bold text-uppercase d-block mb-1">Phone Number</label>
+                                            <span class="fw-semibold text-dark">{{ $patient->getMeta('phone') ?: ($patient->phone ?? '-') }}</span>
+                                        </div>
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <label class="info-label text-muted small fw-bold text-uppercase d-block mb-1">Email</label>
+                                            <span class="fw-semibold text-dark">{{ $patient->getMeta('email') ?: '-' }}</span>
+                                        </div>
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <label class="info-label text-muted small fw-bold text-uppercase d-block mb-1">City / State</label>
+                                            <span class="fw-semibold text-dark">{{ implode(', ', array_filter([$patient->getMeta('city'), $patient->getMeta('state')])) ?: '-' }}</span>
+                                        </div>
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <label class="info-label text-muted small fw-bold text-uppercase d-block mb-1">Marital Status</label>
+                                            <span class="fw-semibold text-dark">{{ $patient->getMeta('marital_status') ?: '-' }}</span>
+                                        </div>
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <label class="info-label text-muted small fw-bold text-uppercase d-block mb-1">Occupation</label>
+                                            <span class="fw-semibold text-dark">{{ $patient->getMeta('occupation') ?: '-' }}</span>
+                                        </div>
+
+                                        <div class="col-12"><hr class="my-2 border-light"></div>
+
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <label class="info-label text-muted small fw-bold text-uppercase d-block mb-1">Diagnosis</label>
+                                            <span class="badge bg-success bg-opacity-10 text-success fs-6 px-2 py-1" style="background: rgba(40,167,69,0.1) !important; color: #28a745 !important;">{{ $patient->diagnosis ?: '-' }}</span>
+                                        </div>
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <label class="info-label text-muted small fw-bold text-uppercase d-block mb-1">Chief Complain</label>
+                                            <span class="fw-semibold text-dark">{{ $patient->getMeta('complain') ?: '-' }}</span>
+                                        </div>
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <label class="info-label text-muted small fw-bold text-uppercase d-block mb-1">History of Illness</label>
+                                            <span class="fw-semibold text-dark">{{ $patient->getMeta('history') ?: '-' }}</span>
+                                        </div>
+
+                                        <div class="col-12"><hr class="my-2 border-light"></div>
+
+                                        <div class="col-md-3 col-sm-6 mb-3">
+                                            <label class="info-label text-muted small fw-bold text-uppercase d-block mb-1">Blood Pressure (BP)</label>
+                                            <span class="fw-semibold text-dark">{{ $patient->getMeta('blood_pressure') ?: '-' }}</span>
+                                        </div>
+                                        <div class="col-md-3 col-sm-6 mb-3">
+                                            <label class="info-label text-muted small fw-bold text-uppercase d-block mb-1">Weight</label>
+                                            <span class="fw-semibold text-dark">{{ $patient->getMeta('weight') ? $patient->getMeta('weight') . ' kg' : '-' }}</span>
+                                        </div>
+                                        <div class="col-md-3 col-sm-6 mb-3">
+                                            <label class="info-label text-muted small fw-bold text-uppercase d-block mb-1">RBS</label>
+                                            <span class="fw-semibold text-dark">{{ $patient->getMeta('rbs') ?: '-' }}</span>
+                                        </div>
+                                        <div class="col-md-3 col-sm-6 mb-3">
+                                            <label class="info-label text-muted small fw-bold text-uppercase d-block mb-1">Patient Status</label>
+                                            <span class="badge bg-primary px-2 py-1">{{ $patient->getMeta('pt_status') ?: 'OPD' }}</span>
+                                        </div>
+
+                                        <div class="col-md-6 mb-3">
+                                            <label class="info-label text-muted small fw-bold text-uppercase d-block mb-1">Investigation / Reports</label>
+                                            <span class="fw-semibold text-dark">{{ $patient->getMeta('investigation') ?: '-' }}</span>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="info-label text-muted small fw-bold text-uppercase d-block mb-1">Notes / Remarks</label>
+                                            <span class="fw-semibold text-dark">{{ $patient->getMeta('notes') ?: '-' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div> -->
 
                     <!-- Payment Section -->
                     <div class="row">
@@ -1663,7 +1682,7 @@
                                                 @foreach($entries as $followUp)
                                                     <tr>
                                                         <td>{{ $sn++ }}</td>
-                                                        <td class="text-muted small">--</td>
+                                                        <td class="text-muted small">{{ $followUp->followup_date ? \Carbon\Carbon::parse($followUp->followup_date)->format('d/m/Y') : ($followUp->created_at ? \Carbon\Carbon::parse($followUp->created_at)->format('d/m/Y') : '-') }}</td>
                                                         <td>{{ formatValue($followUp->weight) }}</td>
                                                         <td>{{ formatValue($followUp->complain) }}</td>
                                                         <td>{{ formatValue($followUp->diagnosis) }}</td>
@@ -1936,11 +1955,129 @@
                                                                             </div> -->
 
                     <!-- Inside Treatment Section -->
+                    @php
+                        // Pre-calculate all 4 treatment collections for single-page Print
+                        $allInsideTreatments = collect();
+                        foreach ($treatments['inside'] ?? [] as $t) {
+                            $allInsideTreatments->push(array_merge((array) $t, [
+                                'date' => $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->format('d/m/Y') : '',
+                                'sort_date' => $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->timestamp : 0,
+                                'type' => 'initial'
+                            ]));
+                        }
+                        foreach ($followUps as $f) {
+                            foreach (\App\Models\PatientTreatment::where('followup_id', $f->id)->where('type', 'inside')->get() as $t) {
+                                $allInsideTreatments->push(array_merge($t->toArray(), [
+                                    'date' => $f->followup_date ? \Carbon\Carbon::parse($f->followup_date)->format('d/m/Y') : '',
+                                    'sort_date' => $f->followup_date ? \Carbon\Carbon::parse($f->followup_date)->timestamp : 0,
+                                    'type' => 'followup'
+                                ]));
+                            }
+                        }
+
+                        $allHomeoTreatments = collect();
+                        foreach ($treatments['homeo'] ?? [] as $t) {
+                            $allHomeoTreatments->push(array_merge((array) $t, [
+                                'date' => $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->format('d/m/Y') : '',
+                                'sort_date' => $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->timestamp : 0,
+                                'type' => 'initial'
+                            ]));
+                        }
+                        foreach ($followUps as $f) {
+                            foreach (\App\Models\PatientTreatment::where('followup_id', $f->id)->where('type', 'homeo')->get() as $t) {
+                                $allHomeoTreatments->push(array_merge($t->toArray(), [
+                                    'date' => $f->followup_date ? \Carbon\Carbon::parse($f->followup_date)->format('d/m/Y') : '',
+                                    'sort_date' => $f->followup_date ? \Carbon\Carbon::parse($f->followup_date)->timestamp : 0,
+                                    'type' => 'followup'
+                                ]));
+                            }
+                        }
+
+                        $allPrescriptionTreatments = collect();
+                        foreach ($treatments['prescription'] ?? [] as $t) {
+                            $allPrescriptionTreatments->push(array_merge((array) $t, [
+                                'date' => $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->format('d/m/Y') : '',
+                                'sort_date' => $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->timestamp : 0,
+                                'type' => 'initial'
+                            ]));
+                        }
+                        foreach ($followUps as $f) {
+                            foreach (\App\Models\PatientTreatment::where('followup_id', $f->id)->where('type', 'prescription')->get() as $t) {
+                                $allPrescriptionTreatments->push(array_merge($t->toArray(), [
+                                    'date' => $f->followup_date ? \Carbon\Carbon::parse($f->followup_date)->format('d/m/Y') : '',
+                                    'sort_date' => $f->followup_date ? \Carbon\Carbon::parse($f->followup_date)->timestamp : 0,
+                                    'type' => 'followup'
+                                ]));
+                            }
+                        }
+
+                        $allOtherTreatments = collect();
+                        foreach ($treatments['other'] ?? [] as $t) {
+                            $allOtherTreatments->push(array_merge((array) $t, [
+                                'date' => $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->format('d/m/Y') : '',
+                                'sort_date' => $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->timestamp : 0,
+                                'type' => 'initial'
+                            ]));
+                        }
+                        foreach ($followUps as $f) {
+                            foreach (\App\Models\PatientTreatment::where('followup_id', $f->id)->where('type', 'other')->get() as $t) {
+                                $allOtherTreatments->push(array_merge($t->toArray(), [
+                                    'date' => $f->followup_date ? \Carbon\Carbon::parse($f->followup_date)->format('d/m/Y') : '',
+                                    'sort_date' => $f->followup_date ? \Carbon\Carbon::parse($f->followup_date)->timestamp : 0,
+                                    'type' => 'followup'
+                                ]));
+                            }
+                        }
+
+                        $printInside = $allInsideTreatments->map(fn($m) => [
+                            'date' => $m['date'] ?? '',
+                            'medicine' => $m['medicine'] ?? '',
+                            'dose' => $m['dose'] ?? '',
+                            'timing' => $m['timing'] ?? $m['timing_0'] ?? ''
+                        ])->values()->toArray();
+
+                        $printHomeo = $allHomeoTreatments->map(fn($m) => [
+                            'date' => $m['date'] ?? '',
+                            'medicine' => $m['medicine'] ?? '',
+                            'days' => $m['days'] ?? '',
+                            'timing' => $m['timing'] ?? $m['timing_0'] ?? ''
+                        ])->values()->toArray();
+
+                        $printPrescription = $allPrescriptionTreatments->map(fn($m) => [
+                            'date' => $m['date'] ?? '',
+                            'medicine' => $m['medicine'] ?? '',
+                            'days' => $m['days'] ?? '',
+                            'dose' => $m['dose'] ?? '',
+                            'timing' => $m['timing'] ?? $m['timing_0'] ?? ''
+                        ])->values()->toArray();
+
+                        $printOther = $allOtherTreatments->map(fn($m) => [
+                            'date' => $m['date'] ?? '',
+                            'medicine' => $m['medicine'] ?? '',
+                            'note' => $m['note'] ?? ''
+                        ])->values()->toArray();
+                    @endphp
+
                     <div class="row pt-5">
                         <div class="col-lg-12 p-0">
                             <div class="card-header mb-2">
-                                <div class="section-title">
-                                    <h3 class="bold font-up fnf-title">Inside Treatment</h3>
+                                <div class="section-title d-flex justify-content-between align-items-center">
+                                    <h3 class="bold font-up fnf-title m-0">Inside Treatment</h3>
+                                    <button type="button" onclick='printAllTreatmentsRx(
+                                        "{{ addslashes($patient->patient_name ?? 'Patient') }}",
+                                        "{{ addslashes($patient->patient_id ?? '') }}",
+                                        "{{ addslashes($patient->age ?? '') }}",
+                                        "{{ addslashes(ucfirst($patient->getMeta('gender') ?? '')) }}",
+                                        "{{ $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->format('d/m/Y') : date('d/m/Y') }}",
+                                        "{{ addslashes($patient->diagnosis ?? '') }}",
+                                        "{{ addslashes($doctor ? $doctor->name : 'N/A') }}",
+                                        {{ json_encode($printInside) }},
+                                        {{ json_encode($printHomeo) }},
+                                        {{ json_encode($printPrescription) }},
+                                        {{ json_encode($printOther) }}
+                                    )' class="btn btn-sm text-white shadow-sm" style="background:#006637; border-color:#006637; font-weight:600; font-size:13px; padding: 6px 16px; border-radius:6px;">
+                                        <i class="bi bi-printer me-1"></i> Print All Treatments
+                                    </button>
                                 </div>
                             </div>
                             @php
@@ -3745,6 +3882,145 @@
             } else {
                 btn.closest('.date-slot-card').querySelectorAll('input[type="text"]').forEach(i => i.value = '');
             }
+        }
+
+        function printAllTreatmentsRx(patientName, patientId, age, gender, date, diagnosis, doctorName, insideData, homeoData, rxData, otherData) {
+            let printWindow = window.open('', '_blank', 'width=900,height=800');
+            
+            let html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Treatment Prescription - ${patientName}</title>
+                <style>
+                    @page { size: A4; margin: 8mm 12mm; }
+                    body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #1e293b; line-height: 1.4; margin: 0; padding: 0; }
+                    
+                    .hospital-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #006637; padding-bottom: 8px; margin-bottom: 8px; }
+                    .clinic-title { font-size: 22px; font-weight: 800; color: #006637; text-transform: uppercase; letter-spacing: 0.5px; margin: 0; }
+                    .consultant-info { font-size: 11px; color: #475569; font-weight: 600; margin-top: 3px; line-height: 1.3; }
+                    .hospital-address { text-align: right; font-size: 11px; color: #334155; line-height: 1.3; max-width: 320px; }
+                    
+                    .rx-subbanner { background: #006637; color: white; text-align: center; font-weight: 700; font-size: 11px; padding: 3px; border-radius: 4px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+                    
+                    .patient-box { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px; font-size: 12px; }
+                    .patient-box div strong { color: #006637; text-transform: uppercase; font-size: 10px; display: block; margin-bottom: 1px; }
+                    
+                    .section-heading { font-size: 11px; font-weight: 700; color: white; background: #006637; padding: 3px 8px; margin-top: 10px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; border-radius: 3px; }
+                    
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 6px; font-size: 11px; }
+                    th { background: #f1f5f9; color: #334155; padding: 4px 6px; text-align: left; font-size: 10px; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; }
+                    td { padding: 4px 6px; border-bottom: 1px solid #e2e8f0; color: #334155; }
+                    tr:nth-child(even) { background: #fafafa; }
+                    
+                    .rx-footer { margin-top: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+                    .doctor-sig { text-align: right; }
+                    .doctor-sig-line { border-top: 1px solid #94a3b8; width: 160px; margin-top: 25px; margin-left: auto; }
+                    
+                    .no-data { font-style: italic; color: #94a3b8; padding: 3px 6px; font-size: 10px; }
+                </style>
+            </head>
+            <body>
+                <div class="hospital-header">
+                    <div>
+                        <div class="clinic-title">SHREE VALLABH CLINIC</div>
+                        <div class="consultant-info">
+                            Consultant: Dr. Manish Akbari (BHMS)<br>
+                            Reg. No.: G-9088 (Gujarat Homoeopathic Council)
+                        </div>
+                    </div>
+                    <div class="hospital-address">
+                        <strong style="color: #006637; text-transform: uppercase;">Hospital Address</strong><br>
+                        Priyanka Intercity, Puna Kumbhariya Road,<br>
+                        Magob, Surat. 📞 +91 8758875020<br>
+                        <span style="font-size: 10px; color: #64748b;"><strong>Date:</strong> ${date}</span>
+                    </div>
+                </div>
+
+                <div class="rx-subbanner">
+                    PATIENT TREATMENT PRESCRIPTION SHEET
+                </div>
+
+                <div class="patient-box">
+                    <div><strong>Patient Name</strong> ${patientName || 'N/A'}</div>
+                    <div><strong>Hospital ID</strong> ${patientId || 'N/A'}</div>
+                    <div><strong>Age / Gender</strong> ${(age || '') + (gender ? ' / ' + gender : '')}</div>
+                    <div><strong>Diagnosis</strong> ${diagnosis || 'N/A'}</div>
+                </div>
+            `;
+
+            // 1. Inside Treatment
+            html += `<div class="section-heading">1. Inside Treatment</div>`;
+            if (insideData && insideData.length > 0) {
+                html += `<table><thead><tr><th width="5%">#</th><th width="15%">Date</th><th width="45%">Medicine Name</th><th width="15%">Dose</th><th width="20%">When / Timing</th></tr></thead><tbody>`;
+                insideData.forEach((item, idx) => {
+                    html += `<tr><td>${idx + 1}</td><td>${item.date || '-'}</td><td><strong>${item.medicine || '-'}</strong></td><td>${item.dose || '-'}</td><td>${item.timing || '-'}</td></tr>`;
+                });
+                html += `</tbody></table>`;
+            } else {
+                html += `<div class="no-data">No inside treatment prescribed.</div>`;
+            }
+
+            // 2. Homeopathic Treatment
+            html += `<div class="section-heading">2. Homeopathic Treatment</div>`;
+            if (homeoData && homeoData.length > 0) {
+                html += `<table><thead><tr><th width="5%">#</th><th width="15%">Date</th><th width="50%">Medicine Name</th><th width="15%">Days</th><th width="20%">When / Timing</th></tr></thead><tbody>`;
+                homeoData.forEach((item, idx) => {
+                    html += `<tr><td>${idx + 1}</td><td>${item.date || '-'}</td><td><strong>${item.medicine || '-'}</strong></td><td>${item.days || '-'}</td><td>${item.timing || '-'}</td></tr>`;
+                });
+                html += `</tbody></table>`;
+            } else {
+                html += `<div class="no-data">No homeopathic treatment prescribed.</div>`;
+            }
+
+            // 3. Prescription
+            html += `<div class="section-heading">3. Prescription</div>`;
+            if (rxData && rxData.length > 0) {
+                html += `<table><thead><tr><th width="5%">#</th><th width="15%">Date</th><th width="40%">Medicine Name</th><th width="15%">Days</th><th width="10%">Dose</th><th width="15%">When / Timing</th></tr></thead><tbody>`;
+                rxData.forEach((item, idx) => {
+                    html += `<tr><td>${idx + 1}</td><td>${item.date || '-'}</td><td><strong>${item.medicine || '-'}</strong></td><td>${item.days || '-'}</td><td>${item.dose || '-'}</td><td>${item.timing || '-'}</td></tr>`;
+                });
+                html += `</tbody></table>`;
+            } else {
+                html += `<div class="no-data">No prescription given.</div>`;
+            }
+
+            // 4. Other Treatment
+            html += `<div class="section-heading">4. Other Treatment</div>`;
+            if (otherData && otherData.length > 0) {
+                html += `<table><thead><tr><th width="5%">#</th><th width="15%">Date</th><th width="45%">Medicine Name</th><th width="35%">Note / Instructions</th></tr></thead><tbody>`;
+                otherData.forEach((item, idx) => {
+                    html += `<tr><td>${idx + 1}</td><td>${item.date || '-'}</td><td><strong>${item.medicine || '-'}</strong></td><td>${item.note || '-'}</td></tr>`;
+                });
+                html += `</tbody></table>`;
+            } else {
+                html += `<div class="no-data">No other treatment prescribed.</div>`;
+            }
+
+            // Footer & Signature
+            html += `
+                <div class="rx-footer">
+                    <div style="font-size: 10px; color: #94a3b8;">
+                        Printed on: ${new Date().toLocaleString()}
+                    </div>
+                    <div class="doctor-sig">
+                        <div class="doctor-sig-line"></div>
+                        <div style="font-weight: 700; color: #006637; margin-top: 4px; font-size: 12px;">Doctor Signature</div>
+                        <div style="font-size: 11px; color: #64748b;">${doctorName || 'Dr. Manish Akbari'}</div>
+                    </div>
+                </div>
+                <script>
+                    window.onload = function() {
+                        window.print();
+                        setTimeout(function() { window.close(); }, 500);
+                    };
+                <\/script>
+            </body>
+            </html>
+            `;
+
+            printWindow.document.write(html);
+            printWindow.document.close();
         }
     </script>
 

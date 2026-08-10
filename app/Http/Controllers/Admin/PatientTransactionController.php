@@ -100,6 +100,7 @@ class PatientTransactionController extends Controller
 
         $summary = $query->groupBy('patient_id', 'invoice_id')
             ->orderBy('last_transaction', 'desc')
+            ->orderBy(DB::raw('MAX(id)'), 'desc')
             ->paginate(10);
 
         // Attach resolved patient and correct branch to each summary row

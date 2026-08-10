@@ -213,7 +213,8 @@ class InvoiceController extends Controller
         }
 
         $perPage = $request->input('per_page', 10);
-        $invoices = $query->orderBy('updated_at', 'desc')
+        $invoices = $query->orderBy('invoice_date', 'desc')
+            ->orderBy('id', 'desc')
             ->paginate($perPage)
             ->appends($request->all());
 
@@ -440,7 +441,9 @@ class InvoiceController extends Controller
             }
             $itemsDetail = !empty($itemNames) ? ' (' . implode(', ', $itemNames) . ')' : '';
 
-             PatientTransaction::create([
+            $txDate = !empty($request->invoice_date) ? \Carbon\Carbon::parse($request->invoice_date . ' ' . now()->format('H:i:s'))->format('Y-m-d H:i:s') : now();
+
+            PatientTransaction::create([
                 'branch_id' => $request->branch_id,
                 'patient_id' => $request->patient_id,
                 'invoice_id' => $invoice->id,
@@ -448,7 +451,9 @@ class InvoiceController extends Controller
                 'type' => 'debit',
                 'amount' => $request->total_payment - ($request->discount ?? 0),
                 'description' => $descPrefix . $invoice->invoice_no . $itemsDetail,
-             ]);
+                'created_at' => $txDate,
+                'updated_at' => $txDate,
+            ]);
 
             // 2. Create Credit Transaction (Given Payment) if any payment is made
             if ($request->given_payment > 0) {
@@ -471,6 +476,8 @@ class InvoiceController extends Controller
                     'type' => 'credit',
                     'amount' => $request->given_payment,
                     'description' => $payDesc . $invoice->invoice_no . $itemsDetail,
+                    'created_at' => $txDate,
+                    'updated_at' => $txDate,
                 ]);
             }
 

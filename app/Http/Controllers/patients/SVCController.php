@@ -416,6 +416,17 @@ class SVCController extends Controller
                     ? ($cashPayment + $gpayPayment + $chequePayment)
                     : (float) ($givenInput ?? 0);
 
+                $paymentMethod = $request->input('payment_method', 'Cash');
+                if (($cashPayment + $gpayPayment + $chequePayment) <= 0 && $givenPayment > 0) {
+                    if ($paymentMethod === 'Online') {
+                        $gpayPayment = $givenPayment;
+                    } elseif ($paymentMethod === 'Cheque') {
+                        $chequePayment = $givenPayment;
+                    } else {
+                        $cashPayment = $givenPayment;
+                    }
+                }
+
                 if ($totalPayment <= 0 && $givenPayment > 0) {
                     $totalPayment = $givenPayment;
                 }
@@ -432,6 +443,9 @@ class SVCController extends Controller
                     'given_payment',
                     'due_payment',
                     'discount_payment',
+                    'cash_payment',
+                    'gp_payment',
+                    'cheque_payment',
                     'payment_method',
                     'inquiry_time',
                     'doctor_id',
@@ -441,7 +455,7 @@ class SVCController extends Controller
                 foreach ($explicitMetaFields as $field) {
                     if ($field === 'foc') {
                         $patient->setMeta('foc', $request->has('foc') ? 'on' : null);
-                    } else if ($request->has($field)) {
+                    } else if ($request->has($field) || in_array($field, ['cash_payment', 'gp_payment', 'cheque_payment'])) {
                         $val = $request->input($field);
                         if ($field === 'total_payment') {
                             $val = $totalPayment;
@@ -449,6 +463,12 @@ class SVCController extends Controller
                             $val = $duePayment;
                         } elseif ($field === 'given_payment') {
                             $val = $givenPayment;
+                        } elseif ($field === 'cash_payment') {
+                            $val = $cashPayment;
+                        } elseif ($field === 'gp_payment') {
+                            $val = $gpayPayment;
+                        } elseif ($field === 'cheque_payment') {
+                            $val = $chequePayment;
                         }
                         $patient->setMeta($field, $val);
                     }
@@ -607,11 +627,15 @@ class SVCController extends Controller
 
 
 
+                    $inquiryDateRaw = $patient->inquiry_date ?? $request->input('inquiry_date');
+                    $invoiceDate = !empty($inquiryDateRaw) ? \Carbon\Carbon::parse($inquiryDateRaw)->format('Y-m-d') : now()->format('Y-m-d');
+                    $transactionDate = !empty($inquiryDateRaw) ? \Carbon\Carbon::parse($inquiryDateRaw)->format('Y-m-d H:i:s') : now();
+
                     $invoice = Invoice::create([
                         'branch_id' => $branch->branch_id,
                         'patient_id' => $patient->id,
                         'invoice_no' => $finalInvoiceNo,
-                        'invoice_date' => now()->format('Y-m-d'),
+                        'invoice_date' => $invoiceDate,
                         'address' => $patient->address,
                         'phone' => $patient->getMeta('phone'),
                         'price' => $totalPayment,
@@ -624,6 +648,8 @@ class SVCController extends Controller
                         'cash_payment' => $cashPayment,
                         'gpay_payment' => $gpayPayment,
                         'cheque_payment' => $chequePayment,
+                        'created_at' => $transactionDate,
+                        'updated_at' => $transactionDate,
                     ]);
 
                     // Determine branch prefix
@@ -645,6 +671,8 @@ class SVCController extends Controller
                         'type' => 'debit',
                         'amount' => $totalPayment,
                         'description' => $descPrefix . ' (Registration & Consultation) - Invoice Generated: ' . $invoice->invoice_no,
+                        'created_at' => $transactionDate,
+                        'updated_at' => $transactionDate,
                     ]);
 
                     // Credit Transaction
@@ -662,6 +690,8 @@ class SVCController extends Controller
                             'type' => 'credit',
                             'amount' => $givenPayment,
                             'description' => $descPrefix . ' (Registration & Consultation) Payment Received (' . $paymentMethod . ') for Invoice: ' . $invoice->invoice_no,
+                            'created_at' => $transactionDate,
+                            'updated_at' => $transactionDate,
                         ]);
                     }
                 }
@@ -819,6 +849,17 @@ class SVCController extends Controller
                 ? ($cashPayment + $gpayPayment + $chequePayment)
                 : (float) ($givenInput ?? 0);
 
+            $paymentMethod = $request->input('payment_method', 'Cash');
+            if (($cashPayment + $gpayPayment + $chequePayment) <= 0 && $givenPayment > 0) {
+                if ($paymentMethod === 'Online') {
+                    $gpayPayment = $givenPayment;
+                } elseif ($paymentMethod === 'Cheque') {
+                    $chequePayment = $givenPayment;
+                } else {
+                    $cashPayment = $givenPayment;
+                }
+            }
+
             // If total payment is not set but payment is given, default total payment to given payment
             if ($totalPayment <= 0 && $givenPayment > 0) {
                 $totalPayment = $givenPayment;
@@ -830,7 +871,7 @@ class SVCController extends Controller
             }
 
             foreach ($metaFields as $field) {
-                if ($request->has($field)) {
+                if ($request->has($field) || in_array($field, ['cash_payment', 'gp_payment', 'cheque_payment'])) {
                     $val = $request->input($field);
                     if ($field === 'total_payment') {
                         $val = $totalPayment;
@@ -838,6 +879,12 @@ class SVCController extends Controller
                         $val = $duePayment;
                     } elseif ($field === 'given_payment') {
                         $val = $givenPayment;
+                    } elseif ($field === 'cash_payment') {
+                        $val = $cashPayment;
+                    } elseif ($field === 'gp_payment') {
+                        $val = $gpayPayment;
+                    } elseif ($field === 'cheque_payment') {
+                        $val = $chequePayment;
                     }
                     $patient->setMeta($field, $val);
                 }
@@ -859,6 +906,10 @@ class SVCController extends Controller
             } else {
                 $descPrefix = 'FNF Service';
             }
+
+            $inquiryDateRaw = $patient->inquiry_date ?? $request->input('inquiry_date');
+            $invoiceDate = !empty($inquiryDateRaw) ? \Carbon\Carbon::parse($inquiryDateRaw)->format('Y-m-d') : now()->format('Y-m-d');
+            $transactionDate = !empty($inquiryDateRaw) ? \Carbon\Carbon::parse($inquiryDateRaw)->format('Y-m-d H:i:s') : now();
 
             if ($invoice) {
                 $selectedChargeIds = $request->input('charge_id', []);
@@ -895,6 +946,7 @@ class SVCController extends Controller
                 }
 
                 $invoice->update([
+                    'invoice_date' => $invoiceDate,
                     'total_payment' => $totalPayment,
                     'discount' => $discountPayment,
                     'given_payment' => $givenPayment,
@@ -911,6 +963,8 @@ class SVCController extends Controller
                 if ($debitTx) {
                     $debitTx->update([
                         'amount' => $totalPayment,
+                        'created_at' => $transactionDate,
+                        'updated_at' => $transactionDate,
                     ]);
                 } else {
                     PatientTransaction::create([
@@ -920,6 +974,8 @@ class SVCController extends Controller
                         'type' => 'debit',
                         'amount' => $totalPayment,
                         'description' => $descPrefix . ' (Registration & Consultation) - Invoice Generated: ' . $invoice->invoice_no,
+                        'created_at' => $transactionDate,
+                        'updated_at' => $transactionDate,
                     ]);
                 }
 
@@ -935,6 +991,8 @@ class SVCController extends Controller
                         $creditTx->update([
                             'amount' => $givenPayment,
                             'description' => $descPrefix . ' (Registration & Consultation) Payment Received (' . $paymentMethod . ') for Invoice: ' . $invoice->invoice_no,
+                            'created_at' => $transactionDate,
+                            'updated_at' => $transactionDate,
                         ]);
                     } else {
                         $creditTx->delete();
@@ -953,6 +1011,8 @@ class SVCController extends Controller
                         'type' => 'credit',
                         'amount' => $givenPayment,
                         'description' => $descPrefix . ' (Registration & Consultation) Payment Received (' . $paymentMethod . ') for Invoice: ' . $invoice->invoice_no,
+                        'created_at' => $transactionDate,
+                        'updated_at' => $transactionDate,
                     ]);
                 }
             } elseif ($totalPayment > 0) {
@@ -1017,7 +1077,7 @@ class SVCController extends Controller
                     'branch_id' => $patient->branch_id,
                     'patient_id' => $patient->id,
                     'invoice_no' => $finalInvoiceNo,
-                    'invoice_date' => now()->format('Y-m-d'),
+                    'invoice_date' => $invoiceDate,
                     'address' => $patient->address,
                     'phone' => $patient->getMeta('phone'),
                     'price' => $totalPayment,
@@ -1030,6 +1090,8 @@ class SVCController extends Controller
                     'cash_payment' => $cashPayment,
                     'gpay_payment' => $gpayPayment,
                     'cheque_payment' => $chequePayment,
+                    'created_at' => $transactionDate,
+                    'updated_at' => $transactionDate,
                 ]);
 
                 // Debit Transaction
@@ -1040,6 +1102,8 @@ class SVCController extends Controller
                     'type' => 'debit',
                     'amount' => $totalPayment,
                     'description' => $descPrefix . ' (Registration & Consultation) - Invoice Generated: ' . $invoice->invoice_no,
+                    'created_at' => $transactionDate,
+                    'updated_at' => $transactionDate,
                 ]);
 
                 // Credit Transaction
@@ -1057,6 +1121,8 @@ class SVCController extends Controller
                         'type' => 'credit',
                         'amount' => $givenPayment,
                         'description' => $descPrefix . ' (Registration & Consultation) Payment Received (' . $paymentMethod . ') for Invoice: ' . $invoice->invoice_no,
+                        'created_at' => $transactionDate,
+                        'updated_at' => $transactionDate,
                     ]);
                 }
             }
