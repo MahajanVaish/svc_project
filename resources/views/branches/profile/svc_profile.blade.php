@@ -684,6 +684,30 @@
             color: rgba(255, 255, 255, 0.65);
         }
 
+        .date-slot-vitals-input {
+            background: #ffffff !important;
+            border: 1px solid #ced4da !important;
+            color: #212529 !important;
+            border-radius: 6px !important;
+            padding: 4px 8px !important;
+            font-size: 12px !important;
+            font-weight: 500 !important;
+        }
+
+        .date-slot-vitals-input::placeholder {
+            color: #6c757d !important;
+            opacity: 1 !important;
+            font-size: 11px !important;
+        }
+
+        .date-slot-vitals-input:focus {
+            background: #ffffff !important;
+            border-color: #006637 !important;
+            color: #212529 !important;
+            outline: none !important;
+            box-shadow: 0 0 0 2px rgba(0, 102, 55, 0.25) !important;
+        }
+
         .slot-at-separator {
             color: rgba(255, 255, 255, 0.75);
             font-size: 13px;
@@ -1200,10 +1224,10 @@
             <div class="header-right">
 
                 @if($patient->getMeta('pt_status') === 'IPD')
-                <button type="button" class="follow-up-btn" data-bs-toggle="modal" data-bs-target="#indoorTreatmentModal"
-                    style="background-color: #007bff; border-color: #007bff; margin-right: 10px;">
+                <a href="{{ route('svc.profile.add-indoor-treatment', $patient->id) }}" class="follow-up-btn"
+                    style="background-color: #007bff; border-color: #007bff; margin-right: 10px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
                     <i class="bi bi-hospital"></i> Indoor Treatment
-                </button>
+                </a>
                 @endif
 
                 <button type="button" class="follow-up-btn" id="addIndoorPatientBtn"
@@ -2268,7 +2292,7 @@
                     </div>
 
                     <!-- Financial Summary & Quick Payment Section -->
-                    <div class="row pt-5">
+                    <!-- <div class="row pt-5">
                         <div class="col-lg-12 p-0">
                             <div class="card-header mb-2">
                                 <div class="section-title">
@@ -2386,7 +2410,7 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div> -->
 
                     @if($patient->getMeta('pt_status') === 'IPD')
                     <!-- Indoor Treatment Display Section -->
@@ -3542,12 +3566,23 @@
                                         [$gDate, $gTime] = explode('||', $key);
                                         $displayDate = $gDate !== 'No Date' ? \Carbon\Carbon::parse($gDate)->format('d/m/Y') : 'No Date';
                                         $displayTime = $gTime !== 'No Time' ? \Carbon\Carbon::createFromFormat('H:i:s', $gTime)->format('h:i A') : 'No Time';
+                                        $firstItem = $items->first();
                                     @endphp
                                     <div class="card mb-2 border-0 shadow-sm" style="border-left: 3px solid #17a2b8 !important;">
-                                        <div class="card-header py-1 px-3 d-flex justify-content-between align-items-center" style="background: #f8f9fa; border-bottom: none;">
-                                            <span style="font-size: 12px; font-weight: 600; color: #006637;">
-                                                <i class="bi bi-calendar-event me-1"></i> {{ $displayDate }} &nbsp;|&nbsp; <i class="bi bi-clock me-1"></i> {{ $displayTime }}
-                                            </span>
+                                        <div class="card-header py-1 px-3 d-flex flex-wrap justify-content-between align-items-center" style="background: #f8f9fa; border-bottom: none;">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span style="font-size: 12px; font-weight: 600; color: #006637;">
+                                                    <i class="bi bi-calendar-event me-1"></i> {{ $displayDate }} &nbsp;|&nbsp; <i class="bi bi-clock me-1"></i> {{ $displayTime }}
+                                                </span>
+                                                @if($firstItem->temp || $firstItem->pulse || $firstItem->bp || $firstItem->spo2)
+                                                    <div class="d-flex flex-wrap gap-1 ms-2 me-2" style="font-size: 11px;">
+                                                        @if($firstItem->temp)<span class="badge bg-white text-dark border">Temp: {{ $firstItem->temp }}</span>@endif
+                                                        @if($firstItem->pulse)<span class="badge bg-white text-dark border">Pulse: {{ $firstItem->pulse }}</span>@endif
+                                                        @if($firstItem->bp)<span class="badge bg-white text-dark border">BP: {{ $firstItem->bp }}</span>@endif
+                                                        @if($firstItem->spo2)<span class="badge bg-white text-dark border">SpO2: {{ $firstItem->spo2 }}</span>@endif
+                                                    </div>
+                                                @endif
+                                            </div>
                                             <span class="badge bg-light text-dark border">{{ $items->count() }} {{ $items->count() === 1 ? 'item' : 'items' }}</span>
                                         </div>
                                         <div class="card-body py-2 px-3">
@@ -3629,11 +3664,17 @@
             slot.setAttribute('data-slot', slotIndex);
 
             slot.innerHTML = `
-                <div class="date-slot-header d-flex align-items-center gap-2 mb-3 pb-2" style="border-bottom: 1px solid #dee2e6;">
+                <div class="date-slot-header d-flex flex-wrap align-items-center gap-2 mb-3 pb-2" style="border-bottom: 1px solid #dee2e6;">
                     <label style="font-weight: 600; font-size: 13px; color: #495057;">Date &amp; Time:</label>
                     <input type="date" class="form-control form-control-sm w-auto" name="slot_date[${slotIndex}]" value="${date}" required>
                     <span class="slot-at-separator">@</span>
                     <input type="time" class="form-control form-control-sm w-auto" name="slot_time[${slotIndex}]" value="${time}">
+                    <div class="d-flex align-items-center gap-1 ms-2">
+                        <input type="text" class="date-slot-vitals-input" name="slot_temp[${slotIndex}]" placeholder="Temp (°F)" title="Temperature (°F)" style="width: 90px;">
+                        <input type="text" class="date-slot-vitals-input" name="slot_pulse[${slotIndex}]" placeholder="Pulse (bpm)" title="Pulse (bpm)" style="width: 90px;">
+                        <input type="text" class="date-slot-vitals-input" name="slot_bp[${slotIndex}]" placeholder="BP (mmHg)" title="Blood Pressure" style="width: 90px;">
+                        <input type="text" class="date-slot-vitals-input" name="slot_spo2[${slotIndex}]" placeholder="SpO2 (%)" title="SpO2 (%)" style="width: 90px;">
+                    </div>
                     <button type="button" class="btn btn-sm btn-outline-danger ms-auto d-flex align-items-center gap-1" onclick="removeProfileIndoorSlot(this)" style="padding: 2px 8px; font-size: 12px;">
                         <i class="bi bi-trash"></i> Drop Slot
                     </button>

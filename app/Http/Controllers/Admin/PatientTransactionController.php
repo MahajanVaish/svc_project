@@ -398,4 +398,201 @@ class PatientTransactionController extends Controller
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
     }
+
+    public function financialDashboard(Request $request)
+    {
+        $user = auth()->user();
+        $isSuperadmin = $user->hasRole('Superadmin');
+        $userBranch = $user->user_branch;
+
+        $branches = Branch::where(function ($q) {
+            $q->where('delete_status', '0')->orWhere('delete_status', '')->orWhereNull('delete_status');
+        })->get();
+
+        return view('admin.finance.financial_dashboard', compact('branches', 'isSuperadmin', 'userBranch'));
+    }
+
+    public function financialDashboardData(Request $request)
+    {
+        try {
+            $user = auth()->user();
+            $isSuperadmin = $user->hasRole('Superadmin');
+            $requestedBranch = $request->input('branch_id');
+            
+            // Branch filtering logic
+            $branchId = !$isSuperadmin ? $user->user_branch : ($requestedBranch ?: null);
+
+            // Date filtering
+            $dateFilter = $request->input('date_filter', 'all');
+            $startDate = null;
+            $endDate = null;
+
+            if ($dateFilter === 'today') {
+                $startDate = Carbon::today()->startOfDay();
+                $endDate = Carbon::today()->endOfDay();
+            } elseif ($dateFilter === 'week') {
+                $startDate = Carbon::now()->startOfWeek();
+                $endDate = Carbon::now()->endOfWeek();
+            } elseif ($dateFilter === 'month') {
+                $startDate = Carbon::now()->startOfMonth();
+                $endDate = Carbon::now()->endOfMonth();
+            } elseif ($dateFilter === 'year') {
+                $startDate = Carbon::now()->startOfYear();
+                $endDate = Carbon::now()->endOfYear();
+            } elseif ($dateFilter === 'custom' && $request->filled('start_date') && $request->filled('end_date')) {
+                $startDate = Carbon::parse($request->start_date)->startOfDay();
+                $endDate = Carbon::parse($request->end_date)->endOfDay();
+            }
+
+            // Base query for transactions
+            $baseQuery = PatientTransaction::query();
+            if ($branchId) {
+                $baseQuery->where(function($q) use ($branchId) {
+                    $q->whereHas('patient', function($subQ) use ($branchId) {
+                        $subQ->where('branch_id', $branchId);
+                        if ($branchId === 'SVC-0005') $subQ->orWhere('branch_id', 'PP-0002');
+                    })
+                    ->orWhereHas('invoice', function($subQ) use ($branchId) {
+                        $subQ->where('branch_id', $branchId);
+                        if ($branchId === 'SVC-0005') $subQ->orWhere('branch_id', 'PP-0002');
+                    });
+                });
+            }
+
+            if ($startDate && $endDate) {
+                $baseQuery->whereBetween('created_at', [$startDate, $endDate]);
+            }
+
+            // Calculations
+            $totalBilled = (float) (clone $baseQuery)->where('type', 'debit')->sum('amount');
+            $totalCollected = (float) (clone $baseQuery)->where('type', 'credit')->sum('amount');
+            $totalDiscount = (float) (clone $baseQuery)->where('type', 'discount')->sum('amount');
+            $totalDue = max(0, $totalBilled - $totalCollected - $totalDiscount);
+            $collectionRate = $totalBilled > 0 ? round(($totalCollected / $totalBilled) * 100, 1) : 0;
+            $transactionCount = (clone $baseQuery)->where('type', 'credit')->count();
+
+            // Monthly breakdown trend (Chart & Table)
+            $monthlyQuery = PatientTransaction::query();
+            if ($branchId) {
+                $monthlyQuery->where(function($q) use ($branchId) {
+                    $q->whereHas('patient', fn($subQ) => $subQ->where('branch_id', $branchId))
+                      ->orWhereHas('invoice', fn($subQ) => $subQ->where('branch_id', $branchId));
+                });
+            }
+            if ($startDate && $endDate) {
+                $monthlyQuery->whereBetween('created_at', [$startDate, $endDate]);
+            }
+
+            $monthlyTrendData = $monthlyQuery
+                ->select(
+                    DB::raw("DATE_FORMAT(created_at, '%Y-%m') as month_key"),
+                    DB::raw("DATE_FORMAT(created_at, '%b %Y') as month_label"),
+                    DB::raw("SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) as billed"),
+                    DB::raw("SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END) as collected"),
+                    DB::raw("SUM(CASE WHEN type = 'discount' THEN amount ELSE 0 END) as discount")
+                )
+                ->groupBy('month_key', 'month_label')
+                ->orderBy('month_key', 'asc')
+                ->get()
+                ->map(function($row) {
+                    $billed = (float) $row->billed;
+                    $collected = (float) $row->collected;
+                    $discount = (float) $row->discount;
+                    $due = max(0, $billed - $collected - $discount);
+                    $rate = $billed > 0 ? round(($collected / $billed) * 100, 1) : 0;
+
+                    return [
+                        'month_key' => $row->month_key,
+                        'month_label' => $row->month_label,
+                        'billed' => $billed,
+                        'collected' => $collected,
+                        'discount' => $discount,
+                        'due' => $due,
+                        'collection_rate' => $rate
+                    ];
+                });
+
+            // Payment Methods Breakdown (Cash, GPay, Cheque, Online)
+            $paymentMethods = [
+                'Cash' => 0,
+                'GPay / UPI' => 0,
+                'Cheque' => 0,
+                'Bank / Online' => 0,
+                'Other' => 0
+            ];
+
+            $creditTrxs = (clone $baseQuery)->where('type', 'credit')->get();
+            foreach ($creditTrxs as $t) {
+                $desc = strtolower($t->description ?? '');
+                $amt = (float) $t->amount;
+
+                if (str_contains($desc, 'gpay') || str_contains($desc, 'upi') || str_contains($desc, 'online')) {
+                    $paymentMethods['GPay / UPI'] += $amt;
+                } elseif (str_contains($desc, 'cheque')) {
+                    $paymentMethods['Cheque'] += $amt;
+                } elseif (str_contains($desc, 'bank') || str_contains($desc, 'transfer')) {
+                    $paymentMethods['Bank / Online'] += $amt;
+                } elseif (str_contains($desc, 'cash') || empty($desc)) {
+                    $paymentMethods['Cash'] += $amt;
+                } else {
+                    $paymentMethods['Other'] += $amt;
+                }
+            }
+
+            // Recent Real-Time Transactions Stream (Latest 20)
+            $recentTransactions = (clone $baseQuery)
+                ->with(['invoice'])
+                ->orderBy('created_at', 'desc')
+                ->limit(20)
+                ->get()
+                ->map(function($t) {
+                    $patientName = 'Patient #' . $t->patient_id;
+                    $patientLiteralId = $t->patient_id;
+                    $bId = $t->branch_id ?? ($t->invoice ? $t->invoice->branch_id : 'SVC-0005');
+
+                    $tempInvoice = new Invoice();
+                    $tempInvoice->patient_id = $t->patient_id;
+                    $tempInvoice->branch_id = $bId;
+                    $resolvedPatient = $tempInvoice->resolved_patient;
+
+                    if ($resolvedPatient) {
+                        $patientName = $resolvedPatient->patient_name ?? $patientName;
+                        $patientLiteralId = $resolvedPatient->patient_id ?? $patientLiteralId;
+                    }
+
+                    return [
+                        'id' => $t->id,
+                        'invoice_id' => $t->invoice_id,
+                        'invoice_no' => $t->invoice ? $t->invoice->invoice_no : 'INV-' . $t->id,
+                        'patient_name' => $patientName,
+                        'patient_id' => $patientLiteralId,
+                        'branch_id' => $bId,
+                        'type' => strtoupper($t->type),
+                        'amount' => (float) $t->amount,
+                        'description' => $t->description ?? 'Transaction Record',
+                        'date_formatted' => $t->created_at ? $t->created_at->format('d M Y, h:i A') : 'N/A',
+                        'receipt_url' => $t->invoice_id ? route('view.invoice', ['id' => $t->invoice_id, 'transaction_id' => $t->id]) : '#'
+                    ];
+                });
+
+            return response()->json([
+                'success' => true,
+                'metrics' => [
+                    'total_billed' => $totalBilled,
+                    'total_collected' => $totalCollected,
+                    'total_discount' => $totalDiscount,
+                    'total_due' => $totalDue,
+                    'collection_rate' => $collectionRate,
+                    'transaction_count' => $transactionCount
+                ],
+                'monthly_trend' => $monthlyTrendData,
+                'payment_methods' => $paymentMethods,
+                'recent_transactions' => $recentTransactions
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Financial Dashboard Data Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
 }

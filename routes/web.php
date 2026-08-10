@@ -32,14 +32,14 @@ use Illuminate\Support\Facades\Route;
 Route::get('/login', function () {
     if (Auth::check()) {
         $user = Auth::user();
-        return $user->hasRole('Superadmin') ? redirect()->route('admin.dashboard') : redirect()->route('diet.chart');
+        return $user->hasRole('Superadmin') ? redirect()->route('admin.dashboard') : redirect()->route('dashboard');
     }
     return redirect('/show-login');
 });
 Route::get('/', function () {
     if (Auth::check()) {
         $user = Auth::user();
-        return $user->hasRole('Superadmin') ? redirect()->route('admin.dashboard') : redirect()->route('diet.chart');
+        return $user->hasRole('Superadmin') ? redirect()->route('admin.dashboard') : redirect()->route('dashboard');
     }
     return redirect('/show-login');
 });
@@ -120,6 +120,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/invoice/add-payment', [InvoiceController::class, 'addPayment'])->name('invoice.add.payment');
 
     // Finance / Transactions
+    Route::get('/financial-dashboard', [App\Http\Controllers\Admin\PatientTransactionController::class, 'financialDashboard'])->name('financial.dashboard');
+    Route::post('/financial-dashboard/data', [App\Http\Controllers\Admin\PatientTransactionController::class, 'financialDashboardData'])->name('financial.dashboard.data');
     Route::get('/patient-transactions', [App\Http\Controllers\Admin\PatientTransactionController::class, 'index'])->name('transactions.index');
     Route::get('/patient-ledger/{patient_id}/{branch_id}', [App\Http\Controllers\Admin\PatientTransactionController::class, 'ledger'])->name('transactions.ledger');
     Route::post('/patient-transactions/delete', [App\Http\Controllers\Admin\PatientTransactionController::class, 'deletePatientTransactions'])->name('transaction.delete');
@@ -177,6 +179,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/svc-profile/{id}', [SVCController::class, 'viewSvcProfile'])->name('svc.profile');
     Route::post('/svc-profile/{id}/update-image', [SVCController::class, 'updateProfileImage'])->name('svc.profile.update-image');
     Route::post('/svc-profile/{id}/indoor-treatment', [SVCController::class, 'saveProfileIndoorTreatment'])->name('svc.profile.indoor-treatment');
+    Route::get('/svc-profile/{id}/add-indoor-treatment', [SVCController::class, 'addIndoorTreatment'])->name('svc.profile.add-indoor-treatment');
     Route::get('/export-svc-patients', [SVCController::class, 'exportSvcPatients'])->name('export.svc.patients');
     Route::post('/svc-profile/{id}/add-payment', [SVCController::class, 'addIpdPayment'])->name('svc.profile.add-payment');
     Route::post('/svc-profile/{id}/update-charges', [SVCController::class, 'updateCharges'])->name('svc.profile.update-charges');

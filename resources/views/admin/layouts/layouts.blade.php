@@ -1785,146 +1785,102 @@
                             </div>
                         @endif
 
-                        <div class="dropdown">
-                            <a href="#"
-                                class="{{ request()->is('svc-patient*') || request()->is('indoor-patients*') || request()->is('lhr*') || request()->is('hydra*') ? 'active' : '' }}">
-                                <i class="fas fa-code-branch"></i>
-                                Other Branches
+                        @if($isSuperadmin)
+                            <a href="{{ route('svc-patient') }}"
+                                class="{{ request()->is('svc-patient*') ? 'active' : '' }}">
+                                <i class="fas fa-user-injured"></i>
+                                SVC Patient
+                            </a>
+                            <a href="{{ route('indoor.patients') }}"
+                                class="{{ request()->is('indoor-patients*') ? 'active' : '' }}">
+                                <i class="fas fa-hospital-user"></i>
+                                Indoor Patients
                             </a>
 
-                            <div class="dropdown-content">
-                                @if($isSuperadmin)
-                                    <div class="dropdown-nested">
-                                        <button class="dropdown-nested-toggle">
-                                            <span style="display: flex; align-items: center; gap: 0.75rem;">
-                                                <i class="fas fa-user-md"></i>
-                                                SVC Patient
-                                            </span>
-                                            <i class="fas fa-chevron-right"></i>
-                                        </button>
-                                        <div class="nested-dropdown">
-                                            <a href="{{ route('svc-patient') }}"
-                                                class="{{ request()->is('svc-patient*') ? 'active' : '' }}">
-                                                <i class="fas fa-user-injured"></i>
-                                                SVC Patient
-                                            </a>
-                                            <a href="{{ route('indoor.patients') }}"
-                                                class="{{ request()->is('indoor-patients*') ? 'active' : '' }}">
-                                                <i class="fas fa-hospital-user"></i>
-                                                Indoor Patients
-                                            </a>
-                                        </div>
-                                    </div>
-
-                                    <div class="dropdown-nested">
-                                        <button class="dropdown-nested-toggle">
-                                            <span style="display: flex; align-items: center; gap: 0.75rem;">
-                                                <i class="fas fa-map-marker-alt"></i>
-                                                LHR
-                                            </span>
-                                            <i class="fas fa-chevron-right"></i>
-                                        </button>
-                                        <div class="nested-dropdown">
-                                            <a href="{{ route('lhr.pending') }}">
-                                                <i class="fas fa-clock"></i>
-                                                LHR Pending
-                                            </a>
-                                            <a href="{{ route('lhr.joined') }}">
-                                                <i class="fas fa-user-check"></i>
-                                                LHR Joined
-                                            </a>
-                                        </div>
-                                    </div>
-
-                                    <div class="dropdown-nested">
-                                        <button class="dropdown-nested-toggle">
-                                            <span style="display: flex; align-items: center; gap: 0.75rem;">
-                                                <i class="fas fa-water"></i>
-                                                Hydra
-                                            </span>
-                                            <i class="fas fa-chevron-right"></i>
-                                        </button>
-                                        <div class="nested-dropdown">
-                                            <a href="{{ route('hydra.pending') }}">
-                                                <i class="fas fa-clock"></i>
-                                                Hydra Pending Data
-                                            </a>
-                                            <a href="{{ route('hydra.joined') }}">
-                                                <i class="fas fa-user-check"></i>
-                                                Hydra Joined Data
-                                            </a>
-                                        </div>
-                                    </div>
-
-                                @else
-                                    @if(in_array($userBranchName, ['SVC', 'SVC-0001']))
-                                        <div class="dropdown-nested">
-                                            <button class="dropdown-nested-toggle">
-                                                <span style="display: flex; align-items: center; gap: 0.75rem;">
-                                                    <i class="fas fa-user-md"></i>
-                                                    SVC Patient
-                                                </span>
-                                                <i class="fas fa-chevron-right"></i>
-                                            </button>
-                                            <div class="nested-dropdown">
-                                                <a href="{{ route('svc-patient') }}"
-                                                    class="{{ request()->is('svc-patient*') ? 'active' : '' }}">
-                                                    <i class="fas fa-user-injured"></i>
-                                                    SVC Patient
-                                                </a>
-                                                <a href="{{ route('indoor.patients') }}"
-                                                    class="{{ request()->is('indoor-patients*') ? 'active' : '' }}">
-                                                    <i class="fas fa-hospital-user"></i>
-                                                    Indoor Patients
-                                                </a>
-                                            </div>
-                                        </div>
-
-                                    @elseif(in_array($userBranchName, ['LHR BD', 'LHR']))
-                                        <div class="dropdown-nested">
-                                            <button class="dropdown-nested-toggle">
-                                                <span style="display: flex; align-items: center; gap: 0.75rem;">
-                                                    <i class="fas fa-map-marker-alt"></i>
-                                                    LHR
-                                                </span>
-                                                <i class="fas fa-chevron-right"></i>
-                                            </button>
-                                            <div class="nested-dropdown">
-                                                <a href="{{ route('lhr.pending') }}">
-                                                    <i class="fas fa-clock"></i>
-                                                    LHR Pending
-                                                </a>
-                                                <a href="{{ route('lhr.joined') }}">
-                                                    <i class="fas fa-user-check"></i>
-                                                    LHR Joined
-                                                </a>
-                                            </div>
-                                        </div>
-
-                                    @elseif(in_array($userBranchName, ['BD HYDRA', 'BD HYDRA-0001', 'Hydra']))
-                                        <div class="dropdown-nested">
-                                            <button class="dropdown-nested-toggle">
-                                                <span style="display: flex; align-items: center; gap: 0.75rem;">
-                                                    <i class="fas fa-water"></i>
-                                                    Hydra
-                                                </span>
-                                                <i class="fas fa-chevron-right"></i>
-                                            </button>
-                                            <div class="nested-dropdown">
-                                                <a href="{{ route('hydra.pending') }}">
-                                                    <i class="fas fa-clock"></i>
-                                                    Hydra Pending Data
-                                                </a>
-                                                <a href="{{ route('hydra.joined') }}">
-                                                    <i class="fas fa-user-check"></i>
-                                                    Hydra Joined Data
-                                                </a>
-                                            </div>
-                                        </div>
-                                    @endif
-                                @endif
+                            <div class="dropdown">
+                                <a href="#" class="{{ request()->is('lhr*') ? 'active' : '' }}">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    LHR
+                                </a>
+                                <div class="dropdown-content">
+                                    <a href="{{ route('lhr.pending') }}">
+                                        <i class="fas fa-clock"></i>
+                                        LHR Pending
+                                    </a>
+                                    <a href="{{ route('lhr.joined') }}">
+                                        <i class="fas fa-user-check"></i>
+                                        LHR Joined
+                                    </a>
+                                </div>
                             </div>
-                        </div>
+
+                            <div class="dropdown">
+                                <a href="#" class="{{ request()->is('hydra*') ? 'active' : '' }}">
+                                    <i class="fas fa-water"></i>
+                                    Hydra
+                                </a>
+                                <div class="dropdown-content">
+                                    <a href="{{ route('hydra.pending') }}">
+                                        <i class="fas fa-clock"></i>
+                                        Hydra Pending Data
+                                    </a>
+                                    <a href="{{ route('hydra.joined') }}">
+                                        <i class="fas fa-user-check"></i>
+                                        Hydra Joined Data
+                                    </a>
+                                </div>
+                            </div>
+
+                        @else
+                            @if(in_array($userBranchName, ['SVC', 'SVC-0001']))
+                                <a href="{{ route('svc-patient') }}"
+                                    class="{{ request()->is('svc-patient*') ? 'active' : '' }}">
+                                    <i class="fas fa-user-injured"></i>
+                                    SVC Patient
+                                </a>
+                                <a href="{{ route('indoor.patients') }}"
+                                    class="{{ request()->is('indoor-patients*') ? 'active' : '' }}">
+                                    <i class="fas fa-hospital-user"></i>
+                                    Indoor Patients
+                                </a>
+
+                            @elseif(in_array($userBranchName, ['LHR BD', 'LHR']))
+                                <div class="dropdown">
+                                    <a href="#" class="{{ request()->is('lhr*') ? 'active' : '' }}">
+                                        <i class="fas fa-map-marker-alt"></i>
+                                        LHR
+                                    </a>
+                                    <div class="dropdown-content">
+                                        <a href="{{ route('lhr.pending') }}">
+                                            <i class="fas fa-clock"></i>
+                                            LHR Pending
+                                        </a>
+                                        <a href="{{ route('lhr.joined') }}">
+                                            <i class="fas fa-user-check"></i>
+                                            LHR Joined
+                                        </a>
+                                    </div>
+                                </div>
+
+                            @elseif(in_array($userBranchName, ['BD HYDRA', 'BD HYDRA-0001', 'Hydra']))
+                                <div class="dropdown">
+                                    <a href="#" class="{{ request()->is('hydra*') ? 'active' : '' }}">
+                                        <i class="fas fa-water"></i>
+                                        Hydra
+                                    </a>
+                                    <div class="dropdown-content">
+                                        <a href="{{ route('hydra.pending') }}">
+                                            <i class="fas fa-clock"></i>
+                                            Hydra Pending Data
+                                        </a>
+                                        <a href="{{ route('hydra.joined') }}">
+                                            <i class="fas fa-user-check"></i>
+                                            Hydra Joined Data
+                                        </a>
+                                    </div>
+                                </div>
+                            @endif
+                        @endif
 
                     @else
                         <a href="{{ route('dashboard') }}" class="{{ request()->is('dashboard*') ? 'active' : '' }}">
@@ -2053,8 +2009,18 @@
                                 <i class="fas fa-chart-bar"></i>
                                 Analytics
                             </a>
+                            <a href="{{ route('financial.dashboard') }}"
+                                class="{{ request()->is('financial-dashboard*') ? 'active' : '' }}">
+                                <i class="fas fa-chart-line"></i>
+                                Financial Dashboard
+                            </a>
                         </div>
                     </div>
+
+                    <a href="{{ route('financial.dashboard') }}" class="{{ request()->is('financial-dashboard*') ? 'active' : '' }}">
+                        <i class="fas fa-chart-line"></i>
+                        Financial Dashboard
+                    </a>
 
                     <a href="{{ route('add.invoice') }}" class="{{ request()->is('add-invoice*') ? 'active' : '' }}">
                         <i class="fas fa-file-invoice"></i>

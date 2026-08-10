@@ -514,6 +514,38 @@
             </tbody>
         </table>
 
+        {{-- PAYMENT TRANSACTIONS / PARTIAL RECEIPTS BREAKDOWN --}}
+        @php
+            $creditTransactions = $invoice->transactions ? $invoice->transactions->where('type', 'credit') : collect();
+        @endphp
+        @if($creditTransactions->isNotEmpty())
+            <div style="margin-top: 15px; margin-bottom: 15px;">
+                <div style="font-weight: bold; font-size: 11px; color: #086838; margin-bottom: 6px; border-bottom: 1px solid #dcfce7; padding-bottom: 3px;">
+                    Payment Receipts Breakdown ({{ $creditTransactions->count() }} Payments Received)
+                </div>
+                <table style="width: 100%; border-collapse: collapse; font-size: 10px; border: 1px solid #e2e8f0;">
+                    <thead>
+                        <tr style="background: #f0fdf4; color: #065c2e;">
+                            <th style="padding: 6px 8px; text-align: left;">Receipt #</th>
+                            <th style="padding: 6px 8px; text-align: left;">Payment Date &amp; Time</th>
+                            <th style="padding: 6px 8px; text-align: left;">Description</th>
+                            <th style="padding: 6px 8px; text-align: right;">Amount Received</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($creditTransactions as $t)
+                            <tr style="border-bottom: 1px solid #f1f5f9; {{ (isset($selectedTransaction) && $selectedTransaction->id == $t->id) ? 'background-color: #dcfce7; font-weight: bold;' : '' }}">
+                                <td style="padding: 5px 8px; font-weight: bold; color: #086838;">#TRX-{{ $t->id }}</td>
+                                <td style="padding: 5px 8px; color: #334155;">{{ $t->created_at ? $t->created_at->format('d M, Y h:i A') : 'N/A' }}</td>
+                                <td style="padding: 5px 8px; color: #475569;">{{ $t->description }}</td>
+                                <td style="padding: 5px 8px; text-align: right; color: #166534; font-weight: bold;">+₹{{ number_format($t->amount, 2) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+
         <div class="terms-section">
             <div class="terms-heading">
                 Terms & Conditions {{ $isSVC ? 'of Treatment' : 'of Service' }}

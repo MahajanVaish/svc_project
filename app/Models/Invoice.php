@@ -62,6 +62,11 @@ class Invoice extends Model
     ];
 
     // Relationships
+    public function transactions()
+    {
+        return $this->hasMany(PatientTransaction::class, 'invoice_id')->orderBy('created_at', 'asc');
+    }
+
     public function patient()
     {
         return $this->belongsTo(PatientInquiry::class, 'patient_id');

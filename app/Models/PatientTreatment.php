@@ -19,6 +19,10 @@ class PatientTreatment extends Model
         'days',
         'date',
         'time',
+        'temp',
+        'pulse',
+        'bp',
+        'spo2',
         'note',
     ];
 

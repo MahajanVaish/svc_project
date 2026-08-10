@@ -221,8 +221,10 @@
                                         @endforeach
                                     @endif
 
-                                    <div class="small text-muted mt-1 opacity-75">
-                                        <i class="fas fa-file-invoice me-1 small"></i> Receipt #{{ $t->invoice->invoice_no }}
+                                    <div class="small text-muted mt-1">
+                                        <a href="{{ route('view.invoice', ['id' => $t->invoice_id, 'transaction_id' => $t->id]) }}" target="_blank" class="text-success text-decoration-none fw-bold small">
+                                            <i class="fas fa-file-invoice me-1"></i> Receipt #{{ $t->invoice->invoice_no }} (TRX-{{ $t->id }}) <i class="fas fa-external-link-alt ms-1" style="font-size: 10px;"></i>
+                                        </a>
                                     </div>
                                 @elseif($t->program)
                                     <span class="badge bg-program px-2 py-1 rounded bg-opacity-10 text-success small fw-medium" style="font-size: 11px; background: rgba(8, 104, 56, 0.08); color: #086838 !important;">

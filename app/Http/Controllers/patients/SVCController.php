@@ -78,7 +78,7 @@ class SVCController extends Controller
         }
 
         if (!empty($request->global_search)) {
-            $search = $request->global_search;
+            $search = trim($request->global_search);
 
             $query->where(function ($q) use ($search) {
                 $q->where('patient_id', 'like', "%$search%")
@@ -89,13 +89,19 @@ class SVCController extends Controller
             });
         }
 
+        $perPage = (int) $request->get('per_page', 10);
         $patients = $query
             ->with([
                 'metas',
                 'treatments' => fn($q) => $q->where('type', 'indoor')->whereNull('followup_id'),
             ])
-            ->orderBy('created_at', 'desc')
-            ->paginate($request->get('per_page', 5));
+            ->orderBy('id', 'desc')
+            ->paginate($perPage)
+            ->appends($request->all());
+
+        if ($request->ajax()) {
+            return view('branches.svc_patients', compact('patients'))->render();
+        }
 
         return view('branches.svc_patients', compact('patients'));
     }
@@ -123,7 +129,7 @@ class SVCController extends Controller
         }
 
         if (!empty($request->global_search)) {
-            $search = $request->global_search;
+            $search = trim($request->global_search);
             $query->where(function ($q) use ($search) {
                 $q->where('patient_id', 'like', "%$search%")
                     ->orWhere('patient_name', 'like', "%$search%")
@@ -133,8 +139,14 @@ class SVCController extends Controller
             });
         }
 
-        $patients = $query->orderBy('created_at', 'desc')
-            ->paginate($request->get('per_page', 10));
+        $perPage = (int) $request->get('per_page', 10);
+        $patients = $query->orderBy('id', 'desc')
+            ->paginate($perPage)
+            ->appends($request->all());
+
+        if ($request->ajax()) {
+            return view('branches.indoor_patients', compact('patients'))->render();
+        }
 
         return view('branches.indoor_patients', compact('patients'));
     }
@@ -399,7 +411,10 @@ class SVCController extends Controller
                 $cashPayment = (float) $request->input('cash_payment', 0);
                 $gpayPayment = (float) $request->input('gp_payment', 0);
                 $chequePayment = (float) $request->input('cheque_payment', 0);
-                $givenPayment = $cashPayment + $gpayPayment + $chequePayment;
+                $givenInput = $request->input('given_payment');
+                $givenPayment = ($cashPayment + $gpayPayment + $chequePayment) > 0
+                    ? ($cashPayment + $gpayPayment + $chequePayment)
+                    : (float) ($givenInput ?? 0);
 
                 if ($totalPayment <= 0 && $givenPayment > 0) {
                     $totalPayment = $givenPayment;
@@ -799,7 +814,10 @@ class SVCController extends Controller
             $cashPayment = (float) $request->input('cash_payment', 0);
             $gpayPayment = (float) $request->input('gp_payment', 0);
             $chequePayment = (float) $request->input('cheque_payment', 0);
-            $givenPayment = $cashPayment + $gpayPayment + $chequePayment;
+            $givenInput = $request->input('given_payment');
+            $givenPayment = ($cashPayment + $gpayPayment + $chequePayment) > 0
+                ? ($cashPayment + $gpayPayment + $chequePayment)
+                : (float) ($givenInput ?? 0);
 
             // If total payment is not set but payment is given, default total payment to given payment
             if ($totalPayment <= 0 && $givenPayment > 0) {
@@ -1468,6 +1486,45 @@ class SVCController extends Controller
         }
     }
 
+    public function addIndoorTreatment($id)
+    {
+        try {
+            $patient = PatientInquiry::findOrFail($id);
+
+            // Fetch past indoor treatments
+            $treatments = PatientTreatment::where('inquiry_id', $patient->id)
+                ->where('type', 'indoor')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Group treatments by date + time
+            $groupedTreatments = $treatments->groupBy(function($item) {
+                return ($item->date ?? 'No Date') . '||' . ($item->time ?? 'No Time');
+            });
+
+            // Fetch active charges
+            $charges = Charges::where(function ($query) {
+                $query->whereIn('delete_status', ['0', ''])->orWhereNull('delete_status');
+            })
+            ->orderBy('charges_name')
+            ->get();
+
+            // Fetch latest invoice for payment values
+            $invoice = Invoice::where('patient_id', $patient->id)->latest()->first();
+
+            return view('branches.profile.add_indoor_treatment', compact(
+                'patient',
+                'treatments',
+                'groupedTreatments',
+                'charges',
+                'invoice'
+            ));
+        } catch (\Exception $e) {
+            Log::error('Error in addIndoorTreatment: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error loading Indoor Treatment page: ' . $e->getMessage());
+        }
+    }
+
     public function saveProfileIndoorTreatment(Request $request, $id)
     {
         try {
@@ -1483,6 +1540,10 @@ class SVCController extends Controller
             // slot_date[N], slot_time[N], slot_medicine[N][], slot_note[N][]
             $slotDates = $request->input('slot_date', []);
             $slotTimes = $request->input('slot_time', []);
+            $slotTemps = $request->input('slot_temp', []);
+            $slotPulses = $request->input('slot_pulse', []);
+            $slotBps = $request->input('slot_bp', []);
+            $slotSpo2s = $request->input('slot_spo2', []);
             $slotMedicines = $request->input('slot_medicine', []);
             $slotNotes = $request->input('slot_note', []);
 
@@ -1498,6 +1559,11 @@ class SVCController extends Controller
                     ? $slotTimes[$slotIndex]
                     : null;
 
+                $temp = isset($slotTemps[$slotIndex]) && !empty(trim($slotTemps[$slotIndex])) ? trim($slotTemps[$slotIndex]) : null;
+                $pulse = isset($slotPulses[$slotIndex]) && !empty(trim($slotPulses[$slotIndex])) ? trim($slotPulses[$slotIndex]) : null;
+                $bp = isset($slotBps[$slotIndex]) && !empty(trim($slotBps[$slotIndex])) ? trim($slotBps[$slotIndex]) : null;
+                $spo2 = isset($slotSpo2s[$slotIndex]) && !empty(trim($slotSpo2s[$slotIndex])) ? trim($slotSpo2s[$slotIndex]) : null;
+
                 $notes = $slotNotes[$slotIndex] ?? [];
 
                 foreach ($medicines as $rowIndex => $medicine) {
@@ -1507,10 +1573,14 @@ class SVCController extends Controller
                             'inquiry_id' => $patient->id,
                             'type' => 'indoor',
                             'medicine' => trim($medicine),
-                            'dose' => null, // Dose removed from modal
-                            'days' => null, // Days removed from modal
+                            'dose' => null, // Dose removed
+                            'days' => null, // Days removed
                             'date' => $date,
                             'time' => $time,
+                            'temp' => $temp,
+                            'pulse' => $pulse,
+                            'bp' => $bp,
+                            'spo2' => $spo2,
                             'note' => isset($notes[$rowIndex]) && !empty(trim($notes[$rowIndex]))
                                 ? trim($notes[$rowIndex])
                                 : null,
@@ -1519,7 +1589,54 @@ class SVCController extends Controller
                 }
             }
 
-            return back()->with('success', 'Indoor treatment saved successfully.');
+            // Process Payment Information if submitted
+            $totalPayment = floatval($request->input('total_payment', 0));
+            $givenPayment = floatval($request->input('given_payment', 0));
+            $discountPayment = floatval($request->input('discount_payment', 0));
+            $duePayment = floatval($request->input('due_payment', 0));
+            $paymentMethod = $request->input('payment_method', 'Cash');
+
+            if ($request->has('total_payment') || $totalPayment > 0 || $givenPayment > 0) {
+                $invoice = Invoice::where('patient_id', $patient->id)->latest()->first();
+
+                if (!$invoice && ($totalPayment > 0 || $givenPayment > 0)) {
+                    $invoiceNo = 'INV-IND-' . $patient->id . '-' . time();
+                    $branchId = $patient->branch_id ?? 'SVC-0005';
+                    $pNameClean = preg_replace('/[^A-Za-z0-9]/', '', $patient->patient_name ?? 'Patient');
+                    $invoiceFile = $pNameClean . 'SVC-' . $invoiceNo . '-' . now()->format('d-m-Y') . '.pdf';
+
+                    $invoice = Invoice::create([
+                        'patient_id' => $patient->id,
+                        'invoice_no' => $invoiceNo,
+                        'total_payment' => $totalPayment,
+                        'given_payment' => $givenPayment,
+                        'discount' => $discountPayment,
+                        'due_payment' => $duePayment,
+                        'branch_id' => $branchId,
+                        'invoice_file' => $invoiceFile,
+                    ]);
+                } else if ($invoice) {
+                    $invoice->total_payment = max($invoice->total_payment, $totalPayment);
+                    if ($givenPayment > 0) {
+                        $invoice->given_payment += $givenPayment;
+                    }
+                    $invoice->discount = $discountPayment;
+                    $invoice->due_payment = $duePayment;
+                    $invoice->save();
+                }
+
+                if ($invoice && $givenPayment > 0) {
+                    PatientTransaction::create([
+                        'patient_id' => $patient->id,
+                        'invoice_id' => $invoice->id,
+                        'type' => 'credit',
+                        'amount' => $givenPayment,
+                        'description' => 'Indoor Treatment Payment (' . ($paymentMethod ?: 'Cash') . ')',
+                    ]);
+                }
+            }
+
+            return redirect()->route('indoor.patients')->with('success', 'Indoor treatment & payment details saved successfully.');
 
         } catch (\Exception $e) {
             return back()->with('error', 'Error saving indoor treatment: ' . $e->getMessage());

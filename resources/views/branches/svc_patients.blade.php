@@ -203,6 +203,22 @@
             text-transform: uppercase;
         }
 
+        .pagination .page-item.active .page-link {
+            background-color: #006637 !important;
+            border-color: #006637 !important;
+            color: white !important;
+        }
+        .pagination .page-link {
+            color: #006637;
+            border-radius: 6px;
+            margin: 0 2px;
+            font-size: 13px;
+        }
+        .pagination .page-link:hover {
+            background-color: #e9f7ef;
+            color: #004d2a;
+        }
+
         /* Apply Poppins to entire page but exclude icons */
         body, .main-content, .card, .table, .modal-content, input, select, textarea, button {
             font-family: 'Poppins', sans-serif !important;
@@ -295,6 +311,30 @@
 
         .date-slot-header input::placeholder {
             color: rgba(255,255,255,0.7);
+        }
+
+        .date-slot-vitals-input {
+            background: #ffffff !important;
+            border: 1px solid #ced4da !important;
+            color: #212529 !important;
+            border-radius: 6px !important;
+            padding: 4px 8px !important;
+            font-size: 12px !important;
+            font-weight: 500 !important;
+        }
+
+        .date-slot-vitals-input::placeholder {
+            color: #6c757d !important;
+            opacity: 1 !important;
+            font-size: 11px !important;
+        }
+
+        .date-slot-vitals-input:focus {
+            background: #ffffff !important;
+            border-color: #006637 !important;
+            color: #212529 !important;
+            outline: none !important;
+            box-shadow: 0 0 0 2px rgba(0, 102, 55, 0.25) !important;
         }
 
         .slot-at-separator {
@@ -489,233 +529,228 @@
         </form>
     </div>
 
-    {{-- Live search results container --}}
-    <div id="liveTableWrapper">
-        {{-- Will be replaced by AJAX results, initially empty --}}
+    <div id="tableContainer">
+        <div class="table-responsive">
+            <table class="patient-table">
+                <thead>
+                    <tr>
+                        <th>Profile</th>
+                        <th>Patient Id</th>
+                        <th>Name</th>
+                        <th>Address</th>
+                        <th>Age</th>
+                        <th>Diagnosis</th>
+                        <th>Inquiry Date</th>
+                        <th>Added On</th>
+                        <th>Status</th>
+                        <th style="text-align: center;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($patients as $patient)
+                        <tr>
+                            <td class="profile-icon">
+                                @php
+                                    $profileImage = $patient->getMeta('profile_image');
+                                @endphp
+                                <a href="{{ route('svc.profile', $patient->id) }}" title="View Profile">
+                                    @if ($profileImage && file_exists(public_path($profileImage)))
+                                        <img src="{{ asset($profileImage) }}" alt="Profile"
+                                            style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
+                                    @else
+                                        <i class="far fa-address-card"></i>
+                                    @endif
+                                </a>
+                            </td>
+                            <td class="patient_id">
+                                <a href="{{ route('svc.profile', $patient->id) }}"
+                                    style="color: #28a745; text-decoration: none;" title="View Profile">
+                                    {{ $patient->patient_id }}
+                                </a>
+                            </td>
+                            <td class="fw-bold">{{ $patient->patient_name }}</td>
+                            <td>{{ $patient->address }}</td>
+                            <td>{{ $patient->age }}</td>
+                            <td>
+                                @if($patient->diagnosis)
+                                    @php
+                                        $diagnoses = explode(', ', $patient->diagnosis);
+                                        $diagnoses = array_filter($diagnoses);
+                                        if (!empty($diagnoses)) {
+                                            echo '<span class="badge bg-info me-1">' . implode('</span><span class="badge bg-info me-1">', array_slice($diagnoses, 0, 3)) . '</span>';
+                                            if (count($diagnoses) > 3) {
+                                                echo '<span class="badge bg-secondary">+' . (count($diagnoses) - 3) . ' more</span>';
+                                            }
+                                        }
+                                    @endphp
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            <td>{{ $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->format('d/m/Y') : '-' }}</td>
+                            <td>{{ $patient->created_at->format('d/m/Y') }}</td>
+                            <td><span class="badge-ipd">SVC Patient</span></td>
+                            <td>
+                                <div class="action-buttons">
+                                    @if($patient->getMeta('pt_status') === 'IPD')
+                                    <button type="button" class="action-btn btn-profile-square" 
+                                        onclick="openIndoorModal({{ json_encode([
+                                            'id' => $patient->id,
+                                            'name' => $patient->patient_name,
+                                            'age' => $patient->age,
+                                            'diagnosis' => $patient->diagnosis ?? 'N/A',
+                                            'complaints' => $patient->getMeta('complain') ?? 'N/A',
+                                            'treatments' => $patient->treatments
+                                        ]) }})" 
+                                        title="Manage Treatment">
+                                        <i class="bi bi-hospital"></i>
+                                    </button>
+                                    @endif
+                                    <a href="{{ route('edit.svc.inquiry', $patient->id) }}" class="action-btn btn-profile-square" title="Edit Inquiry" style="border-color: #007bff; color: #007bff !important;">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <form action="{{ route('delete-inquiry', $patient->id) }}" method="POST" class="d-inline delete-svc-form">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="button" class="action-btn btn-delete-svc" title="Delete Patient"
+                                            style="border-color:#dc3545;color:#dc3545;"
+                                            onclick="confirmDeleteSvc(this, '{{ addslashes($patient->patient_name) }}', '{{ $patient->patient_id }}')">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="10" class="empty-state">
+                                <i class="bi bi-info-circle" style="font-size: 24px; display: block; margin-bottom: 10px;"></i>
+                                No SVC patients found.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        @if ($patients->hasPages() || $patients->total() > 0)
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mt-4 px-1">
+                <div class="text-muted small fw-medium">
+                    Showing {{ $patients->firstItem() ?? 0 }} to {{ $patients->lastItem() ?? 0 }} of {{ $patients->total() }} patients
+                </div>
+                <div>
+                    {{ $patients->links('pagination::bootstrap-5') }}
+                </div>
+            </div>
+        @endif
     </div>
 
     <script>
     (function() {
-        const searchInput   = document.getElementById('globalSearchInput');
-        const clearBtn      = document.getElementById('clearSearchBtn');
-        const tableWrapper  = document.querySelector('.table-responsive');
-        const paginationDiv = document.querySelector('.pagination');
-        const liveWrapper   = document.getElementById('liveTableWrapper');
-        let debounceTimer   = null;
+        const searchInput = document.getElementById('globalSearchInput');
+        const clearBtn = document.getElementById('clearSearchBtn');
+        const perPageSelect = document.querySelector('select[name="per_page"]');
+        const searchForm = document.getElementById('searchForm');
+        let debounceTimer = null;
 
-        if (!searchInput) return;
-
-        // Show/hide clear button based on input value
         function toggleClearBtn() {
             if (clearBtn) {
-                clearBtn.style.display = searchInput.value.trim() ? 'flex' : 'none';
+                clearBtn.style.display = searchInput && searchInput.value.trim() ? 'flex' : 'none';
             }
         }
 
-        // Clear search - reset table and reload page without query
-        if (clearBtn) {
-            clearBtn.addEventListener('click', function() {
-                searchInput.value = '';
-                toggleClearBtn();
-                searchInput.focus();
-                // Redirect to clean URL (removes global_search param)
-                window.location.href = '{{ route('svc-patient') }}' + 
-                    ({{ request('per_page') ? 'true' : 'false' }} ? '?per_page={{ request('per_page', 10) }}' : '');
+        function fetchResults(url = null) {
+            const query = searchInput ? searchInput.value.trim() : '';
+            const perPage = perPageSelect ? perPageSelect.value : 10;
+            
+            let targetUrl = url;
+            if (!targetUrl) {
+                const baseUrl = searchForm ? searchForm.action : window.location.pathname;
+                const params = new URLSearchParams();
+                if (query) params.set('global_search', query);
+                if (perPage) params.set('per_page', perPage);
+                targetUrl = baseUrl + (params.toString() ? '?' + params.toString() : '');
+            }
+
+            const tableContainer = document.getElementById('tableContainer');
+            if (tableContainer) {
+                tableContainer.style.opacity = '0.5';
+            }
+
+            fetch(targetUrl, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }
+            })
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newContainer = doc.getElementById('tableContainer');
+                if (newContainer && tableContainer) {
+                    tableContainer.innerHTML = newContainer.innerHTML;
+                    tableContainer.style.opacity = '1';
+                    attachPaginationListeners();
+                } else if (tableContainer) {
+                    tableContainer.style.opacity = '1';
+                }
+                window.history.replaceState(null, '', targetUrl);
+            })
+            .catch(err => {
+                if (tableContainer) tableContainer.style.opacity = '1';
+                console.error('Live search error:', err);
             });
         }
 
-        searchInput.addEventListener('input', function() {
-            toggleClearBtn();
-            const query = this.value.trim();
-            clearTimeout(debounceTimer);
-
-            // If cleared, restore original table
-            if (query.length === 0) {
-                if (tableWrapper)  tableWrapper.style.display  = '';
-                if (paginationDiv) paginationDiv.style.display = '';
-                liveWrapper.innerHTML = '';
-                return;
-            }
-
-            if (query.length < 2) return;
-
-            debounceTimer = setTimeout(() => {
-                // Show loading indicator in table body
-                const tbody = tableWrapper ? tableWrapper.querySelector('tbody') : null;
-                if (tbody) {
-                    tbody.innerHTML = `<tr><td colspan="10" class="text-center py-4">
-                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>Searching...
-                    </td></tr>`;
-                }
-                if (paginationDiv) paginationDiv.style.display = 'none';
-
-                fetch(`{{ route('svc-patient') }}?global_search=${encodeURIComponent(query)}&per_page={{ request('per_page', 10) }}`, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }
-                })
-                .then(r => r.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc    = parser.parseFromString(html, 'text/html');
-
-                    // Replace tbody
-                    const newTbody = doc.querySelector('.patient-table tbody');
-                    if (tbody && newTbody) {
-                        tbody.innerHTML = newTbody.innerHTML;
-                    }
-
-                    // Replace pagination info
-                    const newPagination = doc.querySelector('.pagination');
-                    if (paginationDiv) {
-                        if (newPagination) {
-                            paginationDiv.outerHTML = newPagination.outerHTML;
-                        } else {
-                            paginationDiv.style.display = 'none';
-                        }
-                    }
-                })
-                .catch(() => {
-                    if (tbody) tbody.innerHTML = '<tr><td colspan="10" class="text-center text-danger py-3">Search failed. Use the Search button.</td></tr>';
+        function attachPaginationListeners() {
+            const container = document.getElementById('tableContainer');
+            if (!container) return;
+            const links = container.querySelectorAll('.pagination a');
+            links.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    fetchResults(this.href);
                 });
-            }, 400);
-        });
+            });
+        }
 
-        // On Enter key - do normal form submit
-        searchInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
+        if (searchInput) {
+            toggleClearBtn();
+            searchInput.addEventListener('input', function() {
+                toggleClearBtn();
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    fetchResults();
+                }, 200);
+            });
+        }
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                if (searchInput) {
+                    searchInput.value = '';
+                    toggleClearBtn();
+                    searchInput.focus();
+                }
+                fetchResults();
+            });
+        }
+
+        if (perPageSelect) {
+            perPageSelect.addEventListener('change', function(e) {
                 e.preventDefault();
-                document.getElementById('searchForm').submit();
-            }
-        });
+                fetchResults();
+            });
+        }
+
+        if (searchForm) {
+            searchForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                fetchResults();
+            });
+        }
+
+        attachPaginationListeners();
     })();
     </script>
-
-    <div class="table-responsive">
-        <table class="patient-table">
-            <thead>
-                <tr>
-                    <th>Profile</th>
-                    <th>Patient Id</th>
-                    <th>Name</th>
-                    <th>Address</th>
-                    <th>Age</th>
-                    <th>Diagnosis</th>
-                    <th>Inquiry Date</th>
-                    <th>Added On</th>
-                    <th>Status</th>
-                    <th style="text-align: center;">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($patients as $patient)
-                    <tr>
-                        <td class="profile-icon">
-                            @php
-                                $profileImage = $patient->getMeta('profile_image');
-                            @endphp
-                            <a href="{{ route('svc.profile', $patient->id) }}" title="View Profile">
-                                @if ($profileImage && file_exists(public_path($profileImage)))
-                                    <img src="{{ asset($profileImage) }}" alt="Profile"
-                                        style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
-                                @else
-                                    <i class="far fa-address-card"></i>
-                                @endif
-                            </a>
-                        </td>
-                        {{-- <td style="font-weight: 600; color: #006637;">{{ $patient->patient_id }}</td> --}}
-                        <td class="patient_id">
-                            <a href="{{ route('svc.profile', $patient->id) }}"
-                                style="color: #28a745; text-decoration: none;" title="View Profile">
-                                {{ $patient->patient_id }}
-                            </a>
-                        </td>
-                        <td>{{ $patient->patient_name }}</td>
-                        <td>{{ $patient->address }}</td>
-                        <td>{{ $patient->age }}</td>
-                        <td>
-                            @if($patient->diagnosis)
-                                @php
-                                    $diagnoses = explode(', ', $patient->diagnosis);
-                                    $diagnoses = array_filter($diagnoses);
-                                    if (!empty($diagnoses)) {
-                                        echo '<span class="badge bg-info me-1">' . implode('</span><span class="badge bg-info me-1">', array_slice($diagnoses, 0, 3)) . '</span>';
-                                        if (count($diagnoses) > 3) {
-                                            echo '<span class="badge bg-secondary">+' . (count($diagnoses) - 3) . ' more</span>';
-                                        }
-                                    }
-                                @endphp
-                            @else
-                                -
-                            @endif
-                        </td>
-                        <td>{{ $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->format('d/m/Y') : '-' }}</td>
-                        <td>{{ $patient->created_at->format('d/m/Y') }}</td>
-                        <td><span class="badge-ipd">SVC Patient</span></td>
-                        <td>
-                            <div class="action-buttons">
-                                @if($patient->getMeta('pt_status') === 'IPD')
-                                <button type="button" class="action-btn btn-profile-square" 
-                                    onclick="openIndoorModal({{ json_encode([
-                                        'id' => $patient->id,
-                                        'name' => $patient->patient_name,
-                                        'age' => $patient->age,
-                                        'diagnosis' => $patient->diagnosis ?? 'N/A',
-                                        'complaints' => $patient->getMeta('complain') ?? 'N/A',
-                                        'treatments' => $patient->treatments
-                                    ]) }})" 
-                                    title="Manage Treatment">
-                                    <i class="bi bi-hospital"></i>
-                                </button>
-                                @endif
-                                <!-- <a href="{{ route('svc.profile', $patient->id) }}" class="action-btn btn-profile-square" title="View Profile">
-                                    <i class="fas fa-address-card"></i>
-                                </a> -->
-                                <a href="{{ route('edit.svc.inquiry', $patient->id) }}" class="action-btn btn-profile-square" title="Edit Inquiry" style="border-color: #007bff; color: #007bff !important;">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <form action="{{ route('delete-inquiry', $patient->id) }}" method="POST" class="d-inline delete-svc-form">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="button" class="action-btn btn-delete-svc" title="Delete Patient"
-                                        style="border-color:#dc3545;color:#dc3545;"
-                                        onclick="confirmDeleteSvc(this, '{{ addslashes($patient->patient_name) }}', '{{ $patient->patient_id }}')">
-                                        <i class="fas fa-trash-alt"></i>
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="9" class="empty-state">
-                            <i class="bi bi-info-circle" style="font-size: 24px; display: block; margin-bottom: 10px;"></i>
-                            No SVC patients found.
-                        </td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-
-    @if ($patients->hasPages())
-        <div class="pagination">
-            <div>
-                Showing {{ $patients->firstItem() }} to {{ $patients->lastItem() }} of {{ $patients->total() }} patients
-            </div>
-            <div class="pagination-buttons">
-                @if ($patients->onFirstPage())
-                    <span class="btn" disabled>Previous</span>
-                @else
-                    <a href="{{ $patients->previousPageUrl() }}" class="btn">Previous</a>
-                @endif
-
-                @if ($patients->hasMorePages())
-                    <a href="{{ $patients->nextPageUrl() }}" class="btn">Next</a>
-                @else
-                    <span class="btn" disabled>Next</span>
-                @endif
-            </div>
-        </div>
-    @endif
 
     {{-- Indoor Treatment Modal --}}
     <div class="modal fade" id="indoorTreatmentModal" tabindex="-1" aria-labelledby="indoorTreatmentModalLabel" aria-hidden="true">
@@ -832,12 +867,19 @@
                 </div>
             `).join('');
 
+            const firstMed = medicines[0] || {};
             slot.innerHTML = `
-                <div class="date-slot-header">
+                <div class="date-slot-header d-flex flex-wrap align-items-center gap-2">
                     <label>Date &amp; Time</label>
                     <input type="date" name="slot_date[${slotIndex}]" value="${date || ''}" required>
                     <span class="slot-at-separator">@</span>
                     <input type="time" name="slot_time[${slotIndex}]" value="${time || ''}">
+                    <div class="d-flex align-items-center gap-1 ms-2">
+                        <input type="text" class="date-slot-vitals-input" name="slot_temp[${slotIndex}]" value="${firstMed.temp || ''}" placeholder="Temp (°F)" title="Temperature (°F)" style="width: 90px;">
+                        <input type="text" class="date-slot-vitals-input" name="slot_pulse[${slotIndex}]" value="${firstMed.pulse || ''}" placeholder="Pulse (bpm)" title="Pulse (bpm)" style="width: 90px;">
+                        <input type="text" class="date-slot-vitals-input" name="slot_bp[${slotIndex}]" value="${firstMed.bp || ''}" placeholder="BP (mmHg)" title="Blood Pressure" style="width: 90px;">
+                        <input type="text" class="date-slot-vitals-input" name="slot_spo2[${slotIndex}]" value="${firstMed.spo2 || ''}" placeholder="SpO2 (%)" title="SpO2 (%)" style="width: 90px;">
+                    </div>
                     <span class="medicine-count-badge">${medicines.length} ${medicines.length === 1 ? 'medicine' : 'medicines'}</span>
                     <button type="button" class="remove-slot-btn">
                         <i class="bi bi-x-lg"></i> Remove Slot

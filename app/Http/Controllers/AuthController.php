@@ -15,7 +15,7 @@ class AuthController extends Controller
     {
         if (Auth::check()) {
             $user = Auth::user();
-            return $user->hasRole('Superadmin') ? redirect()->route('admin.dashboard') : redirect()->route('diet.chart');
+            return $user->hasRole('Superadmin') ? redirect()->route('admin.dashboard') : redirect()->route('dashboard');
         }
 
         $branches = Branch::orderBy('branch_name')->get();
@@ -48,7 +48,7 @@ class AuthController extends Controller
     {
         if (Auth::check()) {
             $user = Auth::user();
-            return $user->hasRole('Superadmin') ? redirect()->route('admin.dashboard') : redirect()->route('diet.chart');
+            return $user->hasRole('Superadmin') ? redirect()->route('admin.dashboard') : redirect()->route('dashboard');
         }
 
         return view('auth.login');
@@ -67,7 +67,7 @@ class AuthController extends Controller
         if (Auth::attempt($credentials, $remember)) {
             $request->session()->regenerate();
             $user = Auth::user();
-            return $user->hasRole('Superadmin') ? redirect()->route('admin.dashboard') : redirect()->route('diet.chart');
+            return $user->hasRole('Superadmin') ? redirect()->route('admin.dashboard') : redirect()->route('dashboard');
         }
 
         return back()->withInput($request->only('email', 'remember'))

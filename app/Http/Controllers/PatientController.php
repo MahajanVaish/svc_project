@@ -44,15 +44,49 @@ class PatientController extends Controller
             $prefix = $branchId ? explode('-', $branchId)[0] : null;
             $dateFmt = $groupBy === 'month' ? '%Y-%m' : '%Y-%m-%d';
 
-            // ── patient_inquiry ──────────────────────────────────────────────
+            // ── patient_inquiry (SVC) ─────────────────────────────────────────
+            $dateExpr = DB::raw("CASE 
+                WHEN inquiry_date REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}' THEN CAST(inquiry_date AS DATE)
+                WHEN inquiry_date REGEXP '^[0-9]{1,2}-[0-9]{1,2}-[0-9]{4}' THEN STR_TO_DATE(inquiry_date, '%d-%m-%Y')
+                WHEN inquiry_date REGEXP '^[0-9]{1,2}/[0-9]{1,2}/[0-9]{4}' THEN STR_TO_DATE(inquiry_date, '%d/%m/%Y')
+                ELSE DATE(created_at)
+            END");
+
             $svcQ = DB::table('patient_inquiry')
-                ->selectRaw("patient_id, patient_name, inquiry_date, address, age, diagnosis, 'SVC' as source")
+                ->selectRaw("id, patient_id, patient_name, inquiry_date, address, age, diagnosis, 'SVC' as source")
                 ->whereNull('deleted_at');
             if ($branchId) $svcQ->where('branch_id', $branchId);
-            if ($fromDate && $toDate) $svcQ->whereBetween('inquiry_date', [$fromDate, $toDate]);
 
-            if ($status === 'pending' || $status === 'diet_chart' || $status === 'online_abroad') {
+            if ($status === 'new_patient' || $status === 'new') {
+                if ($fromDate && $toDate) $svcQ->whereBetween($dateExpr, [$fromDate, $toDate]);
+            } elseif ($status === 'old_patient' || $status === 'old') {
+                if ($fromDate) $svcQ->where($dateExpr, '<', $fromDate);
+            } elseif ($status === 'followup') {
+                $svcQ->whereIn('patient_id', function($sub) use ($fromDate, $toDate) {
+                    $sub->select('patient_id')->from('patient_followups');
+                    if ($fromDate && $toDate) {
+                        $sub->whereBetween(DB::raw("COALESCE(followup_date, DATE(created_at))"), [$fromDate, $toDate]);
+                    }
+                });
+            } elseif ($status === 'ipd') {
+                $svcQ->where(function($q) use ($fromDate, $toDate) {
+                    $q->whereIn('id', function($sub) use ($fromDate, $toDate) {
+                        $sub->select('inquiry_id')->from('patient_medicine_treatments')->where('type', 'indoor');
+                        if ($fromDate && $toDate) {
+                            $sub->whereBetween(DB::raw("COALESCE(date, DATE(created_at))"), [$fromDate, $toDate]);
+                        }
+                    })->orWhereIn('id', function($sub) use ($fromDate, $toDate) {
+                        $sub->select('patient_id')->from('patients_metas')->where('meta_key', 'pt_status')->where('meta_value', 'IPD');
+                        if ($fromDate && $toDate) {
+                            $sub->whereBetween(DB::raw("DATE(created_at)"), [$fromDate, $toDate]);
+                        }
+                    });
+                });
+            } elseif ($status === 'pending' || $status === 'diet_chart' || $status === 'online_abroad') {
                 $svcQ->whereRaw('1 = 0');
+            } else {
+                // all
+                if ($fromDate && $toDate) $svcQ->whereBetween($dateExpr, [$fromDate, $toDate]);
             }
 
             // ── lhr_inquiries ────────────────────────────────────────────────
@@ -711,18 +745,86 @@ class PatientController extends Controller
                 $hydraMonthly = $q->groupByRaw('MONTH(created_at)')->pluck('total', 'month')->toArray();
             }
 
-            // Build 12 months
+            // Monthly Followups count for selected year
+            $qFollowups = DB::table('patient_followups')
+                ->selectRaw("MONTH(COALESCE(followup_date, created_at)) as month, COUNT(*) as total")
+                ->whereRaw("YEAR(COALESCE(followup_date, created_at)) = ?", [$year]);
+            if ($branchId) {
+                $qFollowups->whereIn('patient_id', function ($sub) use ($branchId) {
+                    $sub->select('patient_id')->from('patient_inquiry')->where('branch_id', $branchId);
+                });
+            }
+            $followupMonthly = $qFollowups->groupByRaw('month')->pluck('total', 'month')->toArray();
+
+            if ($isLHR || $isAll) {
+                $qLhrFol = DB::table('lhr_followups')
+                    ->selectRaw("MONTH(created_at) as month, COUNT(*) as total")
+                    ->whereYear('created_at', $year);
+                if ($branchId) $qLhrFol->where('branch_id', $branchId);
+                foreach ($qLhrFol->groupByRaw('month')->pluck('total', 'month') as $mKey => $cnt) {
+                    $followupMonthly[$mKey] = ($followupMonthly[$mKey] ?? 0) + $cnt;
+                }
+            }
+            if ($isHydra || $isAll) {
+                $qHydraFol = DB::table('hydra_patient_followups')
+                    ->selectRaw("MONTH(created_at) as month, COUNT(*) as total")
+                    ->whereYear('created_at', $year);
+                if ($branchId) $qHydraFol->where('branch_id', $branchId);
+                foreach ($qHydraFol->groupByRaw('month')->pluck('total', 'month') as $mKey => $cnt) {
+                    $followupMonthly[$mKey] = ($followupMonthly[$mKey] ?? 0) + $cnt;
+                }
+            }
+
+            // Monthly IPD Patients count for selected year
+            $ipdMonthly = [];
+            for ($m = 1; $m <= 12; $m++) {
+                $metaInquiryIds = DB::table('patients_metas')
+                    ->join('patient_inquiry', 'patients_metas.patient_id', '=', 'patient_inquiry.id')
+                    ->where('patients_metas.meta_key', 'pt_status')
+                    ->where('patients_metas.meta_value', 'IPD')
+                    ->whereRaw("MONTH(patients_metas.created_at) = ? AND YEAR(patients_metas.created_at) = ?", [$m, $year])
+                    ->when($branchId, fn($q) => $q->where('patient_inquiry.branch_id', $branchId))
+                    ->pluck('patient_inquiry.id')
+                    ->toArray();
+
+                $treatInquiryIds = DB::table('patient_medicine_treatments')
+                    ->where('type', 'indoor')
+                    ->whereRaw("MONTH(CASE WHEN date REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}' AND CAST(LEFT(date, 4) AS UNSIGNED) >= 2000 THEN date ELSE created_at END) = ?", [$m])
+                    ->whereRaw("YEAR(CASE WHEN date REGEXP '^[0-9]{4}-[0-9]{2}-[0-9]{2}' AND CAST(LEFT(date, 4) AS UNSIGNED) >= 2000 THEN date ELSE created_at END) = ?", [$year])
+                    ->when($branchId, function($q) use ($branchId) {
+                        $q->whereIn('inquiry_id', function($sub) use ($branchId) {
+                            $sub->select('id')->from('patient_inquiry')->where('branch_id', $branchId);
+                        });
+                    })
+                    ->pluck('inquiry_id')
+                    ->toArray();
+
+                $allIpdIds = array_unique(array_merge($metaInquiryIds, $treatInquiryIds));
+                $ipdMonthly[$m] = count(array_filter($allIpdIds));
+            }
+
+            // Build 12 months with New Patients, Followups, and IPD Patients breakdown
             $months    = [];
             $totalYear = 0;
             $maxMonth  = 0;
             $maxCount  = 0;
 
             for ($m = 1; $m <= 12; $m++) {
-                $count = ($piMonthly[$m] ?? 0) + ($accMonthly[$m] ?? 0)
+                $newPatientsCount = ($piMonthly[$m] ?? 0) + ($accMonthly[$m] ?? 0)
                        + ($lhrMonthly[$m] ?? 0) + ($hydraMonthly[$m] ?? 0);
-                $months[]  = ['month' => $m, 'label' => $monthNames[$m - 1], 'count' => $count];
-                $totalYear += $count;
-                if ($count > $maxCount) { $maxCount = $count; $maxMonth = $m; }
+                $followupCount    = $followupMonthly[$m] ?? 0;
+                $ipdCount         = $ipdMonthly[$m] ?? 0;
+
+                $months[]  = [
+                    'month'        => $m,
+                    'label'        => $monthNames[$m - 1],
+                    'count'        => $newPatientsCount,
+                    'new_patients' => $newPatientsCount,
+                    'followups'    => $followupCount,
+                    'ipd_patients' => $ipdCount,
+                ];
+                $totalYear += $newPatientsCount;
+                if ($newPatientsCount > $maxCount) { $maxCount = $newPatientsCount; $maxMonth = $m; }
             }
 
             // Top diagnoses this year - from relevant table
@@ -786,21 +888,28 @@ class PatientController extends Controller
                 $lastYearTotal += (int)($q->value('total') ?? 0);
             }
 
+            $totalFollowups = array_sum(array_column($months, 'followups'));
+            $totalIpd       = array_sum(array_column($months, 'ipd_patients'));
+            $totalActivity  = $totalYear + $totalFollowups + $totalIpd;
+
             $growth      = $lastYearTotal > 0 ? round((($totalYear - $lastYearTotal) / $lastYearTotal) * 100, 1) : null;
             $currentMonth = now()->year == $year ? now()->month : 12;
             $avgPerMonth  = $currentMonth > 0 ? round($totalYear / $currentMonth, 1) : 0;
 
             return response()->json([
-                'success'       => true,
-                'year'          => $year,
-                'months'        => $months,
-                'total_year'    => $totalYear,
-                'last_year'     => $lastYearTotal,
-                'growth'        => $growth,
-                'avg_per_month' => $avgPerMonth,
-                'best_month'    => $maxMonth > 0 ? $monthNames[$maxMonth - 1] : '—',
-                'best_count'    => $maxCount,
-                'top_diagnoses' => $topDiagnoses,
+                'success'         => true,
+                'year'            => $year,
+                'months'          => $months,
+                'total_year'      => $totalYear,
+                'total_followups' => $totalFollowups,
+                'total_ipd'       => $totalIpd,
+                'total_activity'  => $totalActivity,
+                'last_year'       => $lastYearTotal,
+                'growth'          => $growth,
+                'avg_per_month'   => $avgPerMonth,
+                'best_month'      => $maxMonth > 0 ? $monthNames[$maxMonth - 1] : '—',
+                'best_count'      => $maxCount,
+                'top_diagnoses'   => $topDiagnoses,
             ]);
         } catch (\Exception $e) {
             Log::error('Analytics data error: ' . $e->getMessage());

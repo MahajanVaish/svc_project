@@ -94,34 +94,42 @@
 {{-- Summary Stats --}}
 <div class="stat-cards" id="statCards">
     <div class="stat-card">
-        <div class="stat-label">Total This Year</div>
+        <div class="stat-label">New Patients</div>
         <div class="stat-value" id="statTotal">—</div>
         <div class="stat-sub" id="statGrowth">vs last year</div>
     </div>
     <div class="stat-card blue">
-        <div class="stat-label">Monthly Average</div>
-        <div class="stat-value" id="statAvg">—</div>
-        <div class="stat-sub">patients / month</div>
+        <div class="stat-label">Total Followups</div>
+        <div class="stat-value" id="statFollowups">—</div>
+        <div class="stat-sub">recorded this year</div>
+    </div>
+    <div class="stat-card purple">
+        <div class="stat-label">IPD Patients</div>
+        <div class="stat-value" id="statIpd">—</div>
+        <div class="stat-sub">indoor treatments</div>
     </div>
     <div class="stat-card orange">
         <div class="stat-label">Best Month</div>
         <div class="stat-value" id="statBest">—</div>
         <div class="stat-sub" id="statBestCount">most new patients</div>
     </div>
-    <div class="stat-card purple">
-        <div class="stat-label">Last Year Total</div>
-        <div class="stat-value" id="statLastYear">—</div>
-        <div class="stat-sub">for comparison</div>
-    </div>
 </div>
 
 <div class="two-col">
     {{-- Bar Chart --}}
     <div class="chart-card">
-        <div class="chart-title">
-            <i class="fas fa-chart-bar" style="color:#4bab35;"></i>
-            New Patients Per Month
-            <span id="chartYearLabel" style="font-size:13px;color:#888;font-weight:500;"></span>
+        <div class="chart-title d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+                <i class="fas fa-chart-bar" style="color:#4bab35;"></i>
+                <span id="chartMetricTitle">Monthly Activity Chart</span>
+                <span id="chartYearLabel" style="font-size:13px;color:#888;font-weight:500;"></span>
+            </div>
+            <div class="btn-group btn-group-sm" role="group" id="metricFilterGroup">
+                <button type="button" class="btn btn-sm btn-outline-success active metric-btn" data-metric="all">All Activity</button>
+                <button type="button" class="btn btn-sm btn-outline-success metric-btn" data-metric="new">New</button>
+                <button type="button" class="btn btn-sm btn-outline-info metric-btn" data-metric="followups">Followups</button>
+                <button type="button" class="btn btn-sm btn-outline-primary metric-btn" data-metric="ipd">IPD</button>
+            </div>
         </div>
         <div id="barChart" class="bar-chart">
             <div class="analytics-loading"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
@@ -151,23 +159,39 @@
             <tr>
                 <th>Month</th>
                 <th>New Patients</th>
-                <th style="width:40%">Trend</th>
+                <th>Followups</th>
+                <th>IPD Patients</th>
+                <th style="width:30%">Total Activity / Trend</th>
             </tr>
         </thead>
         <tbody id="monthTableBody">
-            <tr><td colspan="3" class="analytics-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>
+            <tr><td colspan="5" class="analytics-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>
         </tbody>
     </table>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    let globalAnalyticsData = null;
+    let selectedMetric = 'all';
+
     loadAnalytics();
 
     document.getElementById('loadBtn').addEventListener('click', loadAnalytics);
     document.getElementById('yearFilter').addEventListener('change', loadAnalytics);
     const branchFilter = document.getElementById('branchFilter');
     if (branchFilter) branchFilter.addEventListener('change', loadAnalytics);
+
+    document.querySelectorAll('.metric-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.metric-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            selectedMetric = this.getAttribute('data-metric');
+            if (globalAnalyticsData) {
+                renderBarChart(globalAnalyticsData);
+            }
+        });
+    });
 
     function loadAnalytics() {
         const year     = document.getElementById('yearFilter').value;
@@ -176,9 +200,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         document.getElementById('barChart').innerHTML = '<div class="analytics-loading"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
         document.getElementById('diagContainer').innerHTML = '<div class="analytics-loading"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
-        document.getElementById('monthTableBody').innerHTML = '<tr><td colspan="3" class="analytics-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+        document.getElementById('monthTableBody').innerHTML = '<tr><td colspan="5" class="analytics-loading"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
 
-        fetch('{{ route("patient.analytics.data") }}', {
+        fetch('{{ route("patient.analytics.data") }}?_t=' + new Date().getTime(), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -190,6 +214,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(r => r.json())
         .then(data => {
             if (!data.success) { alert('Error: ' + data.message); return; }
+            globalAnalyticsData = data;
             renderStats(data);
             renderBarChart(data);
             renderTable(data);
@@ -199,11 +224,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderStats(data) {
-        document.getElementById('statTotal').textContent = data.total_year.toLocaleString();
-        document.getElementById('statAvg').textContent   = data.avg_per_month;
-        document.getElementById('statBest').textContent  = data.best_month;
-        document.getElementById('statBestCount').textContent = data.best_count + ' patients';
-        document.getElementById('statLastYear').textContent  = data.last_year.toLocaleString();
+        document.getElementById('statTotal').textContent     = (data.total_year || 0).toLocaleString();
+        document.getElementById('statFollowups').textContent = (data.total_followups || 0).toLocaleString();
+        document.getElementById('statIpd').textContent       = (data.total_ipd || 0).toLocaleString();
+        document.getElementById('statBest').textContent      = data.best_month || '—';
+        document.getElementById('statBestCount').textContent = (data.best_count || 0) + ' new patients';
         document.getElementById('chartYearLabel').textContent = '(' + data.year + ')';
 
         const growthEl = document.getElementById('statGrowth');
@@ -213,21 +238,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 ${up ? '▲' : '▼'} ${Math.abs(data.growth)}%
             </span> vs ${data.year - 1}`;
         } else {
-            growthEl.textContent = 'No data for ' + (data.year - 1);
+            growthEl.textContent = 'vs ' + (data.year - 1);
         }
     }
 
+    function getValForMetric(m, metric) {
+        if (metric === 'new') return m.new_patients ?? m.count ?? 0;
+        if (metric === 'followups') return m.followups ?? 0;
+        if (metric === 'ipd') return m.ipd_patients ?? 0;
+        return (m.new_patients ?? m.count ?? 0) + (m.followups ?? 0) + (m.ipd_patients ?? 0);
+    }
+
     function renderBarChart(data) {
-        const max = Math.max(...data.months.map(m => m.count), 1);
+        const vals = data.months.map(m => getValForMetric(m, selectedMetric));
+        const max = Math.max(...vals, 1);
         let html  = '';
+
         data.months.forEach(m => {
-            const pct     = Math.round((m.count / max) * 100);
-            const isBest  = m.label === data.best_month && m.count > 0;
-            const barClass= m.count === 0 ? 'bar bar-zero' : 'bar';
-            const color   = isBest ? 'background:linear-gradient(180deg,#f59e0b,#d97706);' : '';
+            const val = getValForMetric(m, selectedMetric);
+            const pct = Math.round((val / max) * 100);
+            const isBest = m.label === data.best_month && val > 0;
+            const barClass = val === 0 ? 'bar bar-zero' : 'bar';
+            
+            let color = '';
+            if (selectedMetric === 'followups') color = 'background:linear-gradient(180deg,#0dcaf0,#0aa2c0);';
+            else if (selectedMetric === 'ipd') color = 'background:linear-gradient(180deg,#0d6efd,#0a58ca);';
+            else if (isBest) color = 'background:linear-gradient(180deg,#f59e0b,#d97706);';
+
             html += `<div class="bar-wrap">
-                <div class="${barClass}" style="height:${Math.max(pct, 2)}%;${color}">
-                    <div class="bar-tip">${m.count}</div>
+                <div class="${barClass}" style="height:${Math.max(pct, 3)}%;${color}">
+                    <div class="bar-tip" style="line-height: 1.3; text-align: center;">
+                        <span style="font-weight:700;">${val}</span><br>
+                        <span style="font-size:10px; opacity:0.85;">New:${m.new_patients || 0} | Fol:${m.followups || 0} | IPD:${m.ipd_patients || 0}</span>
+                    </div>
                 </div>
                 <span class="bar-label">${m.label}</span>
             </div>`;
@@ -236,21 +279,30 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function renderTable(data) {
-        const max = Math.max(...data.months.map(m => m.count), 1);
+        const totalAct = data.total_activity || 1;
+        const maxAct   = Math.max(...data.months.map(m => (m.new_patients || 0) + (m.followups || 0) + (m.ipd_patients || 0)), 1);
         let rows  = '';
+
         data.months.forEach(m => {
-            const pct    = Math.round((m.count / max) * 100);
-            const isBest = m.label === data.best_month && m.count > 0;
+            const newCount = m.new_patients ?? m.count ?? 0;
+            const folCount = m.followups ?? 0;
+            const ipdCount = m.ipd_patients ?? 0;
+            const monthTotal = newCount + folCount + ipdCount;
+            const pct = Math.round((monthTotal / maxAct) * 100);
+            const isBest = m.label === data.best_month && newCount > 0;
+
             rows += `<tr>
                 <td><strong>${m.label} ${data.year}</strong>${isBest ? '<span class="badge-best">🏆 Best</span>' : ''}</td>
-                <td><strong>${m.count}</strong></td>
+                <td><span class="badge bg-success text-white fw-bold px-2 py-1" style="font-size: 13px;">${newCount}</span></td>
+                <td><span class="badge bg-info text-dark fw-bold px-2 py-1" style="font-size: 13px;">${folCount}</span></td>
+                <td><span class="badge bg-primary text-white fw-bold px-2 py-1" style="font-size: 13px;">${ipdCount}</span></td>
                 <td>
                     <span class="month-bar-inline" style="width:${pct}%;"></span>
-                    <span style="font-size:11px;color:#888;margin-left:6px;">${m.count > 0 ? Math.round((m.count / data.total_year) * 100) + '%' : ''}</span>
+                    <span style="font-size:11px;color:#888;margin-left:6px;font-weight:600;">${monthTotal} Total (${monthTotal > 0 ? Math.round((monthTotal / totalAct) * 100) + '%' : '0%'})</span>
                 </td>
             </tr>`;
         });
-        document.getElementById('monthTableBody').innerHTML = rows || '<tr><td colspan="3" style="text-align:center;color:#888;padding:20px;">No data for this period</td></tr>';
+        document.getElementById('monthTableBody').innerHTML = rows || '<tr><td colspan="5" style="text-align:center;color:#888;padding:20px;">No data for this period</td></tr>';
     }
 
     function renderDiagnoses(data) {

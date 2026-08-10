@@ -498,15 +498,26 @@ class InvoiceController extends Controller
         return $patientName . $branchName . '-' . $invoiceNo . $uniquePart . '-' . $currentDate . '.pdf';
     }
 
-    public function viewInvoice($id)
+    public function viewInvoice(Request $request, $id)
     {
-        $invoice = Invoice::findOrFail($id);
-        return view('invoices.receipt', compact('invoice'));
+        $invoice = Invoice::with(['transactions'])->findOrFail($id);
+        $transactionId = $request->query('transaction_id');
+        $selectedTransaction = null;
+        if ($transactionId) {
+            $selectedTransaction = PatientTransaction::find($transactionId);
+        }
+        return view('invoices.receipt', compact('invoice', 'selectedTransaction'));
     }
-public function downloadInvoice($id)
+
+    public function downloadInvoice(Request $request, $id)
     {
-        $invoice = Invoice::findOrFail($id);
- 
+        $invoice = Invoice::with(['transactions'])->findOrFail($id);
+        $transactionId = $request->query('transaction_id');
+        $selectedTransaction = null;
+        if ($transactionId) {
+            $selectedTransaction = PatientTransaction::find($transactionId);
+        }
+
         // Generate filename if invoice_file is null
         if (empty($invoice->invoice_file)) {
             $patient = null;
@@ -528,14 +539,17 @@ public function downloadInvoice($id)
         } else {
             $filename = $invoice->invoice_file;
         }
-        $pdf = Pdf::loadView('invoices.receipt_pdf', compact('invoice'));
+        if ($selectedTransaction) {
+            $filename = 'Receipt-TRX' . $selectedTransaction->id . '-' . $filename;
+        }
+        $pdf = Pdf::loadView('invoices.receipt_pdf', compact('invoice', 'selectedTransaction'));
         $pdf->setPaper('A4', 'portrait');
         $pdf->setOptions([
             'isHtml5ParserEnabled' => true,
             'isRemoteEnabled' => true,
             'defaultFont' => 'Arial'
         ]);
- 
+
         return $pdf->download($filename);
     }
 
@@ -912,7 +926,7 @@ public function downloadInvoice($id)
             $invoice->save();
 
             // 2. Create Transaction (Credit)
-            PatientTransaction::create([
+            $transaction = PatientTransaction::create([
                 'branch_id' => $invoice->branch_id,
                 'patient_id' => $invoice->patient_id,
                 'invoice_id' => $invoice->id,
@@ -925,7 +939,9 @@ public function downloadInvoice($id)
 
             DB::commit();
 
-            Session::flash('success', 'Payment added successfully! Invoice updated.');
+            $receiptUrl = route('view.invoice', ['id' => $invoice->id, 'transaction_id' => $transaction->id]);
+            Session::flash('success', 'Payment of ₹' . number_format($paymentAmount, 2) . ' received! Payment Receipt #' . $transaction->id . ' generated. <a href="' . $receiptUrl . '" target="_blank" class="btn btn-sm btn-success ms-2"><i class="fas fa-print me-1"></i> Print Receipt</a>');
+            Session::flash('receipt_url', $receiptUrl);
             return redirect()->back();
 
         } catch (\Exception $e) {

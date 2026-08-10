@@ -13,8 +13,8 @@
         .section-divider .title {
             white-space: nowrap;
             font-size: 16px;
-            font-weight: 500;
-            color: #666;
+            font-weight: 600;
+            color: #28a745;
             margin-right: 10px;
         }
 
@@ -69,6 +69,15 @@
             flex: 1;
             position: relative;
             min-width: 200px;
+        }
+
+        #payment_section .pro_filed {
+            gap: 10px;
+        }
+
+        #payment_section .pro_filed .form {
+            min-width: 0;
+            flex: 1 1 0;
         }
 
         @media (max-width: 768px) {
@@ -437,53 +446,29 @@
                                     <input type="text" name="patient_id" value="{{ $patient->patient_id }}"
                                         class="hidden-field">
                                     <input type="hidden" id="branch_id" name="branch_id" value="SVC-0005">
-                                    <div class="section-divider">Personal Information</div>
-                                    <div class="pt-4">
-                                        <div class="pro_filed ">
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <div class="form-col">
-                                                        <label for="patient_name" class="required">Patient Name</label>
-                                                        <input type="text" name="patient_name"
-                                                            value="{{ old('patient_name', $patient->patient_name) }}" readonly>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="address" class="required">Address</label>
-                                                    <input name="address"
-                                                        value="{{ old('address', $patient->address) }}" />
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="pro_filed pt-3">
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="follow_date">Date</label>
-                                                    <input type="date" id="follow_date" name="followup_date"
-                                                        placeholder="Date" value="{{ $selectedDate }}">
-                                                </div>
-                                            </div>
-
-
-
-                                    <div class="form">
-                                        <div class="form-col">
-                                            <label for="followups_time">FollowUp Time</label>
-                                            <input type="time" id="followups_time" name="followups_time" 
-                                                value="{{ old('followups_time', $selectedTime ?: \Carbon\Carbon::now()->format('H:i')) }}">
+                                    <div class="section-divider">
+                                        <div class="title">Personal Information & Address</div>
+                                        <div class="line"></div>
+                                        <div class="icon-box" onclick="toggleGenericSection(this)">
+                                            <i class="bi bi-dash-lg"></i>
                                         </div>
                                     </div>
-                                                                            </div>
-                                        <div class="pro_filed pt-3">
-                                            <div class="form">
-                                                <div class="form-col">
+                                    <div class="pt-3">
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label for="patient_name" class="required">Patient Name</label>
+                                                    <input type="text" name="patient_name"
+                                                        value="{{ old('patient_name', $patient->patient_name) }}" readonly class="form-control">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="form-group">
                                                     <label for="gender">Gender</label>
                                                     @php
                                                         $patientGender = strtolower($patient->getMeta('gender') ?? $patient->gender ?? '');
                                                     @endphp
-                                                    <select name="gender">
+                                                    <select name="gender" class="form-control">
                                                         <option value="">-- Select --</option>
                                                         <option value="male"   {{ $patientGender == 'male'   ? 'selected' : '' }}>Male</option>
                                                         <option value="female" {{ $patientGender == 'female' ? 'selected' : '' }}>Female</option>
@@ -491,55 +476,8 @@
                                                     </select>
                                                 </div>
                                             </div>
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="doctor_id">Assigned Doctor</label>
-                                                    <select name="doctor_id" id="doctor_id">
-                                                        <option value="">Select Doctor</option>
-                                                        @foreach($doctors as $doctor)
-                                                            <option value="{{ $doctor->id }}" 
-                                                                {{ (old('doctor_id', $followup->doctor_id ?? '') == $doctor->id) ? 'selected' : '' }}>
-                                                                {{ $doctor->name }}
-                                                            </option>
-                                                        @endforeach
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="weight">Weight (kg)</label>
-                                                    <div class="dynamic-fields-container" id="weight-container">
-                                                        @php
-                                                            $allWeights = $followupMetaValues['weight'] ?? [];
-                                                        @endphp
-
-                                                        @forelse ($allWeights as $index => $weight)
-                                                            <div class="">
-                                                                <input type="number" step="0.01" name="weight[]"
-                                                                    class="dynamic-field-input" value="{{ $weight }}"
-                                                                    placeholder="e.g. 65.50">
-                                                            </div>
-                                                        @empty
-                                                            <div class="">
-                                                                <input type="number" step="0.01" name="weight[]"
-                                                                    class="dynamic-field-input" value=""
-                                                                    placeholder="e.g. 65.50">
-                                                            </div>
-                                                        @endforelse
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="pro_filed pt-3">
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="phone">Phone Number</label>
-                                                    <input type="number" id="phone" name="phone"
-                                                        value="{{ $patient->getMeta('phone') }}">
-                                                </div>
-                                            </div>
-                                            <div class="form">
-                                                <div class="form-col">
+                                            <div class="col-md-3">
+                                                <div class="form-group">
                                                     <label class="required">Age</label>
                                                     <div class="d-flex gap-2">
                                                         <div class="flex-grow-1" style="min-width: 0;">
@@ -552,191 +490,81 @@
                                                     <input type="hidden" id="age" name="age" value="{{ old('age', $patient->age) }}" required>
                                                 </div>
                                             </div>
+                                            <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label for="phone">Phone Number</label>
+                                                    <input type="number" id="phone" name="phone" class="form-control"
+                                                        value="{{ $patient->getMeta('phone') }}">
+                                                </div>
+                                            </div>
                                         </div>
-                                        @php
-                                            $ptStatusValues = $followupMetaValues['pt_status'] ?? [];
-                                            $temperatureValues = $followupMetaValues['temperature'] ?? [];
-                                            $pulseValues = $followupMetaValues['pulse'] ?? [];
-                                            $bloodPressureValues = $followupMetaValues['blood_pressure'] ?? [];
-                                            $spo2Values = $followupMetaValues['spo2'] ?? [];
-                                            $rbsValues = $followupMetaValues['rbs'] ?? [];
-                                            $diagnosisValues = $followupMetaValues['diagnosis'] ?? [];
-                                        @endphp
-                                        <div class="pro_filed pt-3">
 
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="pt_status">PT.Status</label>
-                                                    <div class="dynamic-fields-container" id="pt_status-container">
-                                                        @php
-                                                            // Filter out empty strings so @empty works correctly for truly new followups
-                                                            $ptStatusFiltered = array_filter($ptStatusValues, fn($v) => $v !== '');
-                                                        @endphp
-                                                        @forelse ($ptStatusFiltered as $index => $val)
-                                                            <div class="">
-                                                                <select name="pt_status[]" class="dynamic-field-input">
-                                                                    <option value="IPD"        {{ $val == 'IPD'        ? 'selected' : '' }}>IPD</option>
-                                                                    <option value="OPD"        {{ $val == 'OPD'        ? 'selected' : '' }}>OPD</option>
-                                                                    <option value="Home Visit" {{ $val == 'Home Visit' ? 'selected' : '' }}>Home Visit</option>
-                                                                </select>
-                                                            </div>
-                                                        @empty
-                                                            {{-- New followup: default OPD --}}
-                                                            <div class="">
-                                                                <select name="pt_status[]" class="dynamic-field-input">
-                                                                    <option value="IPD">IPD</option>
-                                                                    <option value="OPD" selected>OPD</option>
-                                                                    <option value="Home Visit">Home Visit</option>
-                                                                </select>
-                                                            </div>
-                                                        @endforelse
-                                                    </div>
+                                        <div class="row g-3 pt-2">
+                                            <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label for="follow_date">FollowUp Date</label>
+                                                    <input type="date" id="follow_date" name="followup_date" class="form-control"
+                                                        placeholder="Date" value="{{ $selectedDate }}">
                                                 </div>
                                             </div>
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="temperature">Temperature (°C)</label>
-                                                    <div class="dynamic-fields-container" id="temperature-container">
-                                                        @forelse ($temperatureValues as $index => $val)
-                                                            <div class="dynamic-field-group">
-                                                                <input type="text" name="temperature[]"
-                                                                    class="dynamic-field-input"
-                                                                    value="{{ $val === 'null' ? '' : $val }}"
-                                                                    placeholder="Enter temperature">
-                                                            </div>
-                                                        @empty
-                                                            <div class="dynamic-field-group">
-                                                                <input type="number" name="temperature[]"
-                                                                    class="dynamic-field-input" value=""
-                                                                    placeholder="Enter temperature">
-                                                            </div>
-                                                        @endforelse
-                                                    </div>
+                                            <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label for="followups_time">FollowUp Time</label>
+                                                    <input type="time" id="followups_time" name="followups_time" class="form-control"
+                                                        value="{{ old('followups_time', $selectedTime ?: \Carbon\Carbon::now()->format('H:i')) }}">
                                                 </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label for="address" class="required">Address Details</label>
+                                                    <input type="text" name="address" class="form-control"
+                                                        value="{{ old('address', $patient->address) }}" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                            </div>                 
+                                    @php
+                                        $ptStatusValues = $followupMetaValues['pt_status'] ?? [];
+                                        $temperatureValues = $followupMetaValues['temperature'] ?? [];
+                                        $pulseValues = $followupMetaValues['pulse'] ?? [];
+                                        $bloodPressureValues = $followupMetaValues['blood_pressure'] ?? [];
+                                        $spo2Values = $followupMetaValues['spo2'] ?? [];
+                                        $rbsValues = $followupMetaValues['rbs'] ?? [];
+                                        $diagnosisValues = $followupMetaValues['diagnosis'] ?? [];
+                                        $complaintValues = $followupMetaValues['complain'] ?? [];
+                                        $complaintString = is_array($complaintValues) ? implode(', ', array_filter($complaintValues, fn($v) => !empty($v) && $v !== 'null')) : $complaintValues;
+                                    @endphp
 
+                                    <div class="section-divider mt-4">
+                                        <div class="title">Clinical Vitals & Complaints</div>
+                                        <div class="line"></div>
+                                        <div class="icon-box" onclick="toggleGenericSection(this)">
+                                            <i class="bi bi-dash-lg"></i>
                                         </div>
-                                        <div class="pro_filed pt-3">
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="pulse">Pulse</label>
-                                                    <div class="dynamic-fields-container" id="pulse-container">
-                                                        @forelse ($pulseValues as $index => $val)
-                                                            <div class="">
-                                                                <input type="text" name="pulse[]"
-                                                                    class="dynamic-field-input"
-                                                                    value="{{ $val === 'null' ? '' : $val }}"
-                                                                    placeholder="Enter pulse rate">
-                                                            </div>
-                                                        @empty
-                                                            <div class="">
-                                                                <input type="text" name="pulse[]"
-                                                                    class="dynamic-field-input" value=""
-                                                                    placeholder="Enter pulse rate">
-                                                            </div>
-                                                        @endforelse
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="blood_pressure">Blood Pressure</label>
-                                                    <div class="dynamic-fields-container" id="blood-pressure-container">
-                                                        @forelse ($bloodPressureValues as $index => $val)
-                                                            <div class="">
-                                                                <input type="text" name="blood_pressure[]"
-                                                                    class="dynamic-field-input"
-                                                                    value="{{ $val === 'null' ? '' : $val }}"
-                                                                    placeholder="e.g., 120/80">
-                                                            </div>
-                                                        @empty
-                                                            <div class="">
-                                                                <input type="text" name="blood_pressure[]"
-                                                                    class="dynamic-field-input" value=""
-                                                                    placeholder="e.g., 120/80">
-                                                            </div>
-                                                        @endforelse
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="pro_filed pt-3">
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="spo2">SpO2 (%)</label>
-                                                    <div class="dynamic-fields-container" id="spo2-container">
-                                                        @forelse ($spo2Values as $index => $val)
-                                                            <div class="">
-                                                                <input type="number" name="spo2[]"
-                                                                    class="dynamic-field-input"
-                                                                    value="{{ $val === 'null' ? '' : $val }}"
-                                                                    placeholder="Enter SpO2">
-                                                            </div>
-                                                        @empty
-                                                            <div class="">
-                                                                <input type="number" name="spo2[]"
-                                                                    class="dynamic-field-input" value=""
-                                                                    placeholder="Enter SpO2">
-                                                            </div>
-                                                        @endforelse
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="rbs">RBS</label>
-                                                    <div class="dynamic-fields-container" id="rbs-container">
-                                                        @forelse ($rbsValues as $index => $val)
-                                                            <div class="">
-                                                                <input type="text" name="rbs[]"
-                                                                    class="dynamic-field-input"
-                                                                    value="{{ $val === 'null' ? '' : $val }}"
-                                                                    placeholder="Enter RBS">
-                                                            </div>
-                                                        @empty
-                                                            <div class="">
-                                                                <input type="text" name="rbs[]"
-                                                                    class="dynamic-field-input" value=""
-                                                                    placeholder="Enter RBS">
-                                                            </div>
-                                                        @endforelse
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="section-divider mt-4">Medical Information</div>
-                                        <div class="pro_filed pt-2">
-                                            <div class="form">
-                                                <div class="form-col-2">
+                                    </div>
+                                    <div class="pt-3">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <div class="form-group">
                                                     <label for="complain">Complaint</label>
                                                     <div class="multi-select-container">
-                                                        <div class="selected-items" id="complain-selected">
-                                                            <!-- Selected complaints will appear here -->
-                                                        </div>
+                                                        <div class="selected-items" id="complain-selected"></div>
                                                         <div class="autocomplete-container">
                                                             <input type="text" id="complain"
                                                                 placeholder="Type to add complaints..." class="form-control"
                                                                 autocomplete="off">
                                                             <div class="autocomplete-dropdown" id="complain-dropdown"></div>
                                                         </div>
-                                                        @php
-                                                            $complaintValues = $followupMetaValues['complain'] ?? [];
-                                                            $complaintString = is_array($complaintValues) ? implode(', ', array_filter($complaintValues, fn($v) => !empty($v) && $v !== 'null')) : $complaintValues;
-                                                        @endphp
                                                         <input type="hidden" name="complain" id="complain-hidden" value="{{ $complaintString }}">
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div class="pro_filed pt-3">
-                                            <div class="form">
-                                                <div class="form-col-2">
+                                            <div class="col-md-6">
+                                                <div class="form-group">
                                                     <label for="diagnosis">Diagnosis</label>
                                                     <div class="multi-select-container">
-                                                        <div class="selected-items" id="diagnosis-selected">
-                                                            <!-- Selected diagnoses will appear here -->
-                                                        </div>
+                                                        <div class="selected-items" id="diagnosis-selected"></div>
                                                         <div class="autocomplete-container">
                                                             <input type="text" id="diagnosis" 
                                                                 placeholder="Type to add diagnoses..."  class="form-control" autocomplete="off">
@@ -747,7 +575,205 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="pro_filed pt-3">
+
+                                        <div class="row g-3 pt-3">
+                                            <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label for="temperature">Temperature (°C / °F)</label>
+                                                    <div class="dynamic-fields-container" id="temperature-container">
+                                                        @forelse ($temperatureValues as $index => $val)
+                                                            <div class="dynamic-field-group">
+                                                                <input type="text" name="temperature[]"
+                                                                    class="dynamic-field-input form-control"
+                                                                    value="{{ $val === 'null' ? '' : $val }}"
+                                                                    placeholder="Enter temperature">
+                                                            </div>
+                                                        @empty
+                                                            <div class="dynamic-field-group">
+                                                                <input type="number" name="temperature[]"
+                                                                    class="dynamic-field-input form-control" value=""
+                                                                    placeholder="Enter temperature">
+                                                            </div>
+                                                        @endforelse
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label for="pulse">Pulse (bpm)</label>
+                                                    <div class="dynamic-fields-container" id="pulse-container">
+                                                        @forelse ($pulseValues as $index => $val)
+                                                            <div>
+                                                                <input type="text" name="pulse[]"
+                                                                    class="dynamic-field-input form-control"
+                                                                    value="{{ $val === 'null' ? '' : $val }}"
+                                                                    placeholder="Enter pulse rate">
+                                                            </div>
+                                                        @empty
+                                                            <div>
+                                                                <input type="text" name="pulse[]"
+                                                                    class="dynamic-field-input form-control" value=""
+                                                                    placeholder="Enter pulse rate">
+                                                            </div>
+                                                        @endforelse
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label for="blood_pressure">Blood Pressure (mmHg)</label>
+                                                    <div class="dynamic-fields-container" id="blood-pressure-container">
+                                                        @forelse ($bloodPressureValues as $index => $val)
+                                                            <div>
+                                                                <input type="text" name="blood_pressure[]"
+                                                                    class="dynamic-field-input form-control"
+                                                                    value="{{ $val === 'null' ? '' : $val }}"
+                                                                    placeholder="e.g., 120/80">
+                                                            </div>
+                                                        @empty
+                                                            <div>
+                                                                <input type="text" name="blood_pressure[]"
+                                                                    class="dynamic-field-input form-control" value=""
+                                                                    placeholder="e.g., 120/80">
+                                                            </div>
+                                                        @endforelse
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label for="spo2">SpO2 (%)</label>
+                                                    <div class="dynamic-fields-container" id="spo2-container">
+                                                        @forelse ($spo2Values as $index => $val)
+                                                            <div>
+                                                                <input type="number" name="spo2[]"
+                                                                    class="dynamic-field-input form-control"
+                                                                    value="{{ $val === 'null' ? '' : $val }}"
+                                                                    placeholder="Enter SpO2">
+                                                            </div>
+                                                        @empty
+                                                            <div>
+                                                                <input type="number" name="spo2[]"
+                                                                    class="dynamic-field-input form-control" value=""
+                                                                    placeholder="Enter SpO2">
+                                                            </div>
+                                                        @endforelse
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="section-divider mt-4">
+                                        <div class="title">Other Vitals & Patient Details</div>
+                                        <div class="line"></div>
+                                        <div class="icon-box" onclick="toggleGenericSection(this)">
+                                            <i class="bi bi-dash-lg"></i>
+                                        </div>
+                                    </div>
+                                    <div class="pt-3">
+                                        <div class="row g-3">
+                                            <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label for="weight">Weight (kg)</label>
+                                                    <div class="dynamic-fields-container" id="weight-container">
+                                                        @php
+                                                            $allWeights = $followupMetaValues['weight'] ?? [];
+                                                        @endphp
+                                                        @forelse ($allWeights as $index => $weight)
+                                                            <div>
+                                                                <input type="number" step="0.01" name="weight[]"
+                                                                    class="dynamic-field-input form-control" value="{{ $weight }}"
+                                                                    placeholder="e.g. 65.50">
+                                                            </div>
+                                                        @empty
+                                                            <div>
+                                                                <input type="number" step="0.01" name="weight[]"
+                                                                    class="dynamic-field-input form-control" value=""
+                                                                    placeholder="e.g. 65.50">
+                                                            </div>
+                                                        @endforelse
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label for="pt_status">PT.Status</label>
+                                                    <div class="dynamic-fields-container" id="pt_status-container">
+                                                        @php
+                                                            $ptStatusFiltered = array_filter($ptStatusValues, fn($v) => $v !== '');
+                                                        @endphp
+                                                        @forelse ($ptStatusFiltered as $index => $val)
+                                                            <div>
+                                                                <select name="pt_status[]" class="dynamic-field-input form-control">
+                                                                    <option value="IPD"        {{ $val == 'IPD'        ? 'selected' : '' }}>IPD</option>
+                                                                    <option value="OPD"        {{ $val == 'OPD'        ? 'selected' : '' }}>OPD</option>
+                                                                    <option value="Home Visit" {{ $val == 'Home Visit' ? 'selected' : '' }}>Home Visit</option>
+                                                                </select>
+                                                            </div>
+                                                        @empty
+                                                            <div>
+                                                                <select name="pt_status[]" class="dynamic-field-input form-control">
+                                                                    <option value="IPD">IPD</option>
+                                                                    <option value="OPD" selected>OPD</option>
+                                                                    <option value="Home Visit">Home Visit</option>
+                                                                </select>
+                                                            </div>
+                                                        @endforelse
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label for="rbs">RBS</label>
+                                                    <div class="dynamic-fields-container" id="rbs-container">
+                                                        @forelse ($rbsValues as $index => $val)
+                                                            <div>
+                                                                <input type="text" name="rbs[]"
+                                                                    class="dynamic-field-input form-control"
+                                                                    value="{{ $val === 'null' ? '' : $val }}"
+                                                                    placeholder="Enter RBS">
+                                                            </div>
+                                                        @empty
+                                                            <div>
+                                                                <input type="text" name="rbs[]"
+                                                                    class="dynamic-field-input form-control" value=""
+                                                                    placeholder="Enter RBS">
+                                                            </div>
+                                                        @endforelse
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label for="doctor_id">Assigned Doctor</label>
+                                                    <select name="doctor_id" id="doctor_id" class="form-control">
+                                                        <option value="">Select Doctor</option>
+                                                        @foreach($doctors as $doctor)
+                                                            <option value="{{ $doctor->id }}" 
+                                                                {{ (old('doctor_id', $followup->doctor_id ?? '') == $doctor->id) ? 'selected' : '' }}>
+                                                                {{ $doctor->name }}
+                                                            </option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="section-divider mt-4">
+                                        <div class="title">Medical Information</div>
+                                        <div class="line"></div>
+                                        <div class="icon-box" onclick="toggleGenericSection(this)">
+                                            <i class="bi bi-dash-lg"></i>
+                                        </div>
+                                    </div>
+                                    <div class="pro_filed pt-3">
                                             <div class="form">
                                                 <div class="form-col">
                                                     <label for="investigation">Investigation</label>
@@ -1234,7 +1260,7 @@
                                         </div>
 
                                         <!-- INDOOR TREATMENT -->
-                                        <div class="treatment-section mb-4">
+                                        <!-- <div class="treatment-section mb-4">
                                             <div class="section-divider">
                                                 <div class="title">Indoor Treatment</div>
                                                 <div class="line"></div>
@@ -1303,7 +1329,7 @@
                                                     </tbody>
                                                 </table>
                                             </div>
-                                        </div>
+                                        </div> -->
 
                                         <!-- OTHER TREATMENT -->
                                         <div class="treatment-section mb-4">
@@ -1477,24 +1503,6 @@
                                                 <div class="form-col">
                                                     <label for="due_payment">Due Amount</label>
                                                     <input type="number" id="due_payment" name="due_payment" value="{{ (float)($followupMetaValues['total_payment'][0] ?? 0) - (float)($followupMetaValues['discount_payment'][0] ?? 0) - (float)($followupMetaValues['given_payment'][0] ?? 0) }}" readonly>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="pro_filed pt-3">
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="gp_payment">Google Pay</label>
-                                                    <input type="number" id="gp_payment" name="gp_payment"
-                                                        placeholder="Google Pay" step="0.01" value="{{ $followupMetaValues['gp_payment'][0] ?? '' }}">
-                                                </div>
-                                            </div>
-
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="cheque_payment">Cheque Payment</label>
-                                                    <input type="number" id="cheque_payment" name="cheque_payment"
-                                                        placeholder="Cheque Payment" step="0.01" value="{{ $followupMetaValues['cheque_payment'][0] ?? '' }}">
                                                 </div>
                                             </div>
                                         </div>
@@ -2655,13 +2663,15 @@ function formatTimeFromMeta(timeValue) {
                 });
                 if (totalPaymentHidden) totalPaymentHidden.value = total.toFixed(2);
                 
+                const discount = parseFloat(document.getElementById('discount_payment')?.value) || 0;
                 const given = parseFloat(givenPaymentInput?.value) || 0;
-                if (duePaymentInput) duePaymentInput.value = (total - given).toFixed(2);
+                if (duePaymentInput) duePaymentInput.value = Math.max(0, total - discount - given).toFixed(2);
             }
 
             if (givenPaymentInput) {
                 givenPaymentInput.addEventListener('input', calculateTotal);
             }
+            document.getElementById('discount_payment')?.addEventListener('input', calculateTotal);
             
             input.addEventListener('focus', function() {
                 showChargeSuggestions(input, dropdown, charges, selectedItems);
@@ -2946,6 +2956,22 @@ function formatTimeFromMeta(timeValue) {
                     item.classList.remove('selected');
                 }
             });
+        }
+
+        function toggleGenericSection(iconBox) {
+            const sectionDivider = iconBox.closest('.section-divider');
+            const targetContent = sectionDivider ? sectionDivider.nextElementSibling : null;
+            const icon = iconBox.querySelector('i');
+
+            if (targetContent) {
+                if (targetContent.style.display === 'none') {
+                    targetContent.style.display = 'block';
+                    if (icon) icon.className = 'bi bi-dash-lg';
+                } else {
+                    targetContent.style.display = 'none';
+                    if (icon) icon.className = 'bi bi-plus-lg';
+                }
+            }
         }
     </script>
 @endsection

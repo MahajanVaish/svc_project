@@ -663,6 +663,30 @@
         color: rgba(255,255,255,0.65);
     }
 
+    .date-slot-vitals-input {
+        background: #ffffff !important;
+        border: 1px solid #ced4da !important;
+        color: #212529 !important;
+        border-radius: 6px !important;
+        padding: 4px 8px !important;
+        font-size: 12px !important;
+        font-weight: 500 !important;
+    }
+
+    .date-slot-vitals-input::placeholder {
+        color: #6c757d !important;
+        opacity: 1 !important;
+        font-size: 11px !important;
+    }
+
+    .date-slot-vitals-input:focus {
+        background: #ffffff !important;
+        border-color: #006637 !important;
+        color: #212529 !important;
+        outline: none !important;
+        box-shadow: 0 0 0 2px rgba(0, 102, 55, 0.25) !important;
+    }
+
     .slot-at-separator {
         color: rgba(255,255,255,0.75);
         font-size: 13px;
@@ -845,9 +869,9 @@ function formatValue($value) {
             <div class="profile-title">IPD Patient Profile</div>
         </div>
         <div class="header-right">
-            <button type="button" class="follow-up-btn" data-bs-toggle="modal" data-bs-target="#indoorTreatmentModal" style="background-color: #007bff; border-color: #007bff; margin-right: 10px;">
+            <a href="{{ route('svc.profile.add-indoor-treatment', $patient->id) }}" class="follow-up-btn" style="background-color: #007bff; border-color: #007bff; margin-right: 10px; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
                 <i class="bi bi-hospital"></i> Indoor Treatment
-            </button>
+            </a>
             <a href="{{ route('add.follow.up', ['patient_id' => $patient->patient_id]) }}" class="follow-up-btn">Add Follow Up</a>
         </div>
     </div>
@@ -1331,11 +1355,17 @@ function addIndoorDateSlot() {
     card.dataset.slot = slotIndex;
 
     card.innerHTML = `
-        <div class="date-slot-header">
+        <div class="date-slot-header d-flex flex-wrap align-items-center gap-2">
             <label>Date &amp; Time</label>
             <input type="date" name="slot_date[${slotIndex}]" required>
             <span class="slot-at-separator">@</span>
             <input type="time" name="slot_time[${slotIndex}]">
+            <div class="d-flex align-items-center gap-1 ms-2">
+                <input type="text" class="date-slot-vitals-input" name="slot_temp[${slotIndex}]" placeholder="Temp (°F)" title="Temperature (°F)" style="width: 90px;">
+                <input type="text" class="date-slot-vitals-input" name="slot_pulse[${slotIndex}]" placeholder="Pulse (bpm)" title="Pulse (bpm)" style="width: 90px;">
+                <input type="text" class="date-slot-vitals-input" name="slot_bp[${slotIndex}]" placeholder="BP (mmHg)" title="Blood Pressure" style="width: 90px;">
+                <input type="text" class="date-slot-vitals-input" name="slot_spo2[${slotIndex}]" placeholder="SpO2 (%)" title="SpO2 (%)" style="width: 90px;">
+            </div>
             <span class="medicine-count-badge">1 medicine</span>
             <button type="button" class="remove-slot-btn" onclick="removeIndoorSlot(this)">
                 <i class="bi bi-x-lg"></i> Remove Slot

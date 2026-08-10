@@ -775,6 +775,46 @@
                 </table>
             </div>
 
+            {{-- PAYMENT TRANSACTIONS / PARTIAL RECEIPTS BREAKDOWN --}}
+            @php
+                $creditTransactions = $invoice->transactions ? $invoice->transactions->where('type', 'credit') : collect();
+            @endphp
+            @if($creditTransactions->isNotEmpty())
+                <div style="margin-bottom: 22px;">
+                    <div style="font-weight: 700; font-size: 13px; color: #086838; margin-bottom: 10px; border-bottom: 2px solid #dcfce7; padding-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                        <span><i class="fas fa-receipt me-1"></i> Payment Receipts Breakdown</span>
+                        <span style="font-size: 11px; font-weight: 600; color: #64748b;">{{ $creditTransactions->count() }} Payments Recorded</span>
+                    </div>
+                    <div class="table-wrapper" style="margin-bottom: 0;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                            <thead>
+                                <tr style="background: #f0fdf4; color: #065c2e;">
+                                    <th style="padding: 10px 14px; text-align: left;">Receipt #</th>
+                                    <th style="padding: 10px 14px; text-align: left;">Payment Date &amp; Time</th>
+                                    <th style="padding: 10px 14px; text-align: left;">Description</th>
+                                    <th style="padding: 10px 14px; text-align: right;">Amount Received</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($creditTransactions as $t)
+                                    <tr style="border-bottom: 1px solid #f1f5f9; {{ (isset($selectedTransaction) && $selectedTransaction->id == $t->id) ? 'background-color: #dcfce7; font-weight: 700;' : '' }}">
+                                        <td style="padding: 10px 14px;">
+                                            <span style="font-weight: 700; color: #086838;">#TRX-{{ $t->id }}</span>
+                                            @if(isset($selectedTransaction) && $selectedTransaction->id == $t->id)
+                                                <span class="badge bg-success ms-1" style="font-size: 10px; background-color: #086838 !important; color: white; padding: 2px 6px; border-radius: 4px;">Selected Receipt</span>
+                                            @endif
+                                        </td>
+                                        <td style="padding: 10px 14px; color: #334155;">{{ $t->created_at ? $t->created_at->format('d M, Y h:i A') : 'N/A' }}</td>
+                                        <td style="padding: 10px 14px; color: #475569;">{{ $t->description }}</td>
+                                        <td style="padding: 10px 14px; text-align: right; color: #166534; font-weight: 700;">+₹{{ number_format($t->amount, 2) }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
+
             {{-- TERMS --}}
             <div class="terms-section">
                 <div class="terms-heading">

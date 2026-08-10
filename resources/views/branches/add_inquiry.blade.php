@@ -769,84 +769,21 @@
                                     @endif
 
                                     <div class="section-divider">
-                                        <div class="title">Personal Information</div>
+                                        <div class="title">Personal Information & Address</div>
                                         <div class="line"></div>
                                         <div class="icon-box" onclick="toggleGenericSection(this)">
                                             <i class="bi bi-dash-lg"></i>
                                         </div>
                                     </div>
-                                    <div class="pt-4">
-                                        <div class="pro_filed d-sm-block d-md-flex ">
-                                            <div class="form">
-                                                <div class="form-col">
+                                    <div class="pt-3">
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <div class="form-group">
                                                     <label for="patient_name" class="required">Patient Name</label>
                                                     <input type="text" id="patient_name" name="patient_name"
-                                                        placeholder="Enter patient name" required>
+                                                        placeholder="Enter patient name" required class="form-control">
                                                 </div>
                                             </div>
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="address" class="required">Address</label>
-                                                    <textarea id="address" name="address"
-                                                        placeholder="Enter complete address" required></textarea>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="pro_filed d-sm-block d-md-flex pt-3">
-                                            <div class="form">
-                                                <div class="form">
-                                                    <div class="form-col">
-                                                        <label for="inquiry_date">Inquiry Date</label>
-                                                        <input type="date" id="inquiry_date" name="inquiry_date"
-                                                            placeholder="Inquiry Date">
-                                                    </div>
-                                                </div>
-
-                                                <script>
-                                                    document.addEventListener('DOMContentLoaded', function () {
-                                                        // Get today's date in YYYY-MM-DD format
-                                                        const today = new Intl.DateTimeFormat('en-CA', {
-                                                            timeZone: 'Asia/Kolkata'
-                                                        }).format(new Date());
-
-                                                        // Set default value to today
-                                                        document.getElementById('inquiry_date').value = today;
-
-                                                        const nowTime = new Intl.DateTimeFormat('en-GB', {
-                                                            hour: '2-digit',
-                                                            minute: '2-digit',
-                                                            hour12: false,
-                                                            timeZone: 'Asia/Kolkata'
-                                                        }).format(new Date());
-
-                                                        const timeInput = document.getElementById('inquiry_time');
-                                                        if (timeInput) {
-                                                            timeInput.value = nowTime;
-                                                        }
-
-                                                        // Handle branch selection to populate hidden branch field
-                                                        const branchSelect = document.getElementById('branchName');
-                                                        const branchHidden = document.getElementById('branchHidden');
-
-                                                        if (branchSelect && branchHidden) {
-                                                            branchSelect.addEventListener('change', function () {
-                                                                const selectedOption = this.options[this.selectedIndex];
-                                                                branchHidden.value = selectedOption.text;
-                                                            });
-                                                        }
-
-                                                        console.log('Past dates disabled. Minimum selectable date:', today);
-                                                    });
-                                                </script>
-                                            </div>
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="inquiry_time">Inquiry Time</label>
-                                                    <input type="time" id="inquiry_time" name="inquiry_time">
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="row pt-3">
                                             <div class="col-md-2">
                                                 <div class="form-group">
                                                     <label for="gender" class="required">Gender</label>
@@ -876,30 +813,6 @@
                                                     <input type="hidden" id="age" name="age" required>
                                                 </div>
                                             </div>
-                                            <div class="col-md-2">
-                                                <div class="form-group">
-                                                    <label for="height">Height (cm)</label>
-                                                    <input type="number" step="0.1" id="height" name="height"
-                                                        placeholder="Height" onchange="calculateBMI()" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <div class="form-group">
-                                                    <label for="weight">Weight (kg)</label>
-                                                    <input type="number" step="0.1" id="weight" name="weight"
-                                                        placeholder="Weight" onchange="calculateBMI()" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <div class="form-group">
-                                                    <label for="bmi">BMI</label>
-                                                    <input type="number" step="0.1" id="bmi" name="bmi" placeholder="BMI"
-                                                        readonly style="background-color: #f8f9fa;" class="form-control">
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div class="row pt-3">
                                             <div class="col-md-3">
                                                 <div class="form-group">
                                                     <label for="phone">Phone Number</label>
@@ -907,18 +820,72 @@
                                                         class="form-control">
                                                 </div>
                                             </div>
+                                        </div>
+
+                                        <div class="row g-3 pt-2">
                                             <div class="col-md-3">
                                                 <div class="form-group">
-                                                    <label for="pt_status">PT.Status</label>
-                                                    <select id="pt_status" name="pt_status" class="form-control">
-                                                        <option value="">Select Status</option>
-                                                        <option value="IPD">IPD</option>
-                                                        <option value="OPD">OPD</option>
-                                                        <option value="Home Visit">Home Visit</option>
-                                                    </select>
+                                                    <label for="inquiry_date">Inquiry Date</label>
+                                                    <input type="date" id="inquiry_date" name="inquiry_date"
+                                                        placeholder="Inquiry Date" class="form-control">
                                                 </div>
+                                                <script>
+                                                    document.addEventListener('DOMContentLoaded', function () {
+                                                        const today = new Intl.DateTimeFormat('en-CA', {
+                                                            timeZone: 'Asia/Kolkata'
+                                                        }).format(new Date());
+                                                        document.getElementById('inquiry_date').value = today;
+
+                                                        const nowTime = new Intl.DateTimeFormat('en-GB', {
+                                                            hour: '2-digit',
+                                                            minute: '2-digit',
+                                                            hour12: false,
+                                                            timeZone: 'Asia/Kolkata'
+                                                        }).format(new Date());
+
+                                                        const timeInput = document.getElementById('inquiry_time');
+                                                        if (timeInput) {
+                                                            timeInput.value = nowTime;
+                                                        }
+
+                                                        const branchSelect = document.getElementById('branchName');
+                                                        const branchHidden = document.getElementById('branchHidden');
+
+                                                        if (branchSelect && branchHidden) {
+                                                            branchSelect.addEventListener('change', function () {
+                                                                const selectedOption = this.options[this.selectedIndex];
+                                                                branchHidden.value = selectedOption.text;
+                                                            });
+                                                        }
+                                                    });
+                                                </script>
                                             </div>
                                             <div class="col-md-3">
+                                                <div class="form-group">
+                                                    <label for="inquiry_time">Inquiry Time</label>
+                                                    <input type="time" id="inquiry_time" name="inquiry_time" class="form-control">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="form-group">
+                                                    <label for="address" class="required">Address Details</label>
+                                                    <input type="text" id="address" name="address"
+                                                        placeholder="Enter complete address" required class="form-control">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="section-divider mt-4">
+                                        <div class="title">Clinical Vitals & Complaints</div>
+                                        <div class="line"></div>
+                                        <div class="icon-box" onclick="toggleGenericSection(this)">
+                                            <i class="bi bi-dash-lg"></i>
+                                        </div>
+                                    </div>
+                                    <div class="pt-3">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
                                                 <div class="form-group">
                                                     <label for="complain">Complaint</label>
                                                     <div class="multi-select-container">
@@ -935,7 +902,7 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div class="col-md-3">
+                                            <div class="col-md-6">
                                                 <div class="form-group">
                                                     <label for="diagnosis" class="required">Diagnosis</label>
                                                     <div class="multi-select-container">
@@ -956,44 +923,102 @@
                                             </div>
                                         </div>
 
-                                        <div class="row pt-3">
-                                            <div class="col-md-2">
+                                        <div class="row g-3 pt-3">
+                                            <div class="col-md-3">
                                                 <div class="form-group">
-                                                    <label for="temperature">Temp (°C)</label>
+                                                    <label for="temperature">Temp (°F / °C)</label>
                                                     <input type="number" step="0.1" min="0" id="temperature"
-                                                        name="temperature" placeholder="100.5" class="form-control">
+                                                        name="temperature" placeholder="e.g. 98.6" class="form-control">
                                                 </div>
                                             </div>
-
-                                            <div class="col-md-2">
+                                            <div class="col-md-3">
                                                 <div class="form-group">
-                                                    <label for="pulse">Pulse</label>
-                                                    <input type="text" id="pulse" name="pulse" placeholder="Pulse"
+                                                    <label for="pulse">Pulse (bpm)</label>
+                                                    <input type="text" id="pulse" name="pulse" placeholder="e.g. 72"
                                                         class="form-control">
                                                 </div>
                                             </div>
                                             <div class="col-md-3">
                                                 <div class="form-group">
-                                                    <label for="blood_pressure">BP</label>
+                                                    <label for="blood_pressure">BP (mmHg)</label>
                                                     <input type="text" id="blood_pressure" name="blood_pressure"
-                                                        placeholder="Blood Presure" class="form-control">
+                                                        placeholder="e.g. 120/80" class="form-control">
                                                 </div>
                                             </div>
-                                            <div class="col-md-2">
+                                            <div class="col-md-3">
                                                 <div class="form-group">
                                                     <label for="spo2">SpO2 (%)</label>
-                                                    <input type="number" id="spo2" name="spo2" placeholder="SpO2"
+                                                    <input type="number" id="spo2" name="spo2" placeholder="e.g. 98"
                                                         class="form-control">
                                                 </div>
                                             </div>
-                                            <div class="col-md-3">
+                                        </div>
+                                    </div>
+
+                                    <div class="section-divider mt-4">
+                                        <div class="title">Other Vitals & Patient Details</div>
+                                        <div class="line"></div>
+                                        <div class="icon-box" onclick="toggleGenericSection(this)">
+                                            <i class="bi bi-dash-lg"></i>
+                                        </div>
+                                    </div>
+                                    <div class="pt-3">
+                                        <div class="row g-3">
+                                            <div class="col-md-2">
+                                                <div class="form-group">
+                                                    <label for="height">Height (cm)</label>
+                                                    <input type="number" step="0.1" id="height" name="height"
+                                                        placeholder="Height" onchange="calculateBMI()" class="form-control">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="form-group">
+                                                    <label for="weight">Weight (kg)</label>
+                                                    <input type="number" step="0.1" id="weight" name="weight"
+                                                        placeholder="Weight" onchange="calculateBMI()" class="form-control">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="form-group">
+                                                    <label for="bmi">BMI</label>
+                                                    <input type="number" step="0.1" id="bmi" name="bmi" placeholder="BMI"
+                                                        readonly style="background-color: #f8f9fa;" class="form-control">
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <div class="form-group">
+                                                    <label for="pt_status">PT.Status</label>
+                                                    <select id="pt_status" name="pt_status" class="form-control">
+                                                        <option value="">Select Status</option>
+                                                        <option value="IPD">IPD</option>
+                                                        <option value="OPD">OPD</option>
+                                                        <option value="PNP">PNP</option>
+                                                        <option value="Home Visit">Home Visit</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
                                                 <div class="form-group">
                                                     <label for="rbs">RBS</label>
                                                     <input type="text" id="rbs" name="rbs" placeholder="RBS"
                                                         class="form-control">
                                                 </div>
                                             </div>
+                                            <div class="col-md-2">
+                                                <div class="form-group">
+                                                    <label for="doctor_id">Assign Doctor</label>
+                                                    <select name="doctor_id" id="doctor_id" class="form-control">
+                                                        <option value="">Select Doctor</option>
+                                                        @foreach($doctors as $doctor)
+                                                            <option value="{{ $doctor->id }}" {{ old('doctor_id') == $doctor->id ? 'selected' : '' }}>
+                                                                {{ $doctor->name }}
+                                                            </option>
+                                                        @endforeach
+                                                    </select>
+                                                </div>
+                                            </div>
                                         </div>
+                                    </div>
                                         <div class="section-divider mt-4">
                                             <div class="title">Medical Information</div>
                                             <div class="line"></div>
@@ -1024,19 +1049,6 @@
                                                     <label for="family_history">Family History</label>
                                                     <textarea id="family_history" name="family_history"
                                                         placeholder="Enter family medical history"></textarea>
-                                                </div>
-                                            </div>
-                                            <div class="form">
-                                                <div class="form-col">
-                                                    <label for="doctor_id">Assign Doctor</label>
-                                                    <select name="doctor_id" id="doctor_id" class="form-control">
-                                                        <option value="">Select Doctor</option>
-                                                        @foreach($doctors as $doctor)
-                                                            <option value="{{ $doctor->id }}" {{ old('doctor_id') == $doctor->id ? 'selected' : '' }}>
-                                                                {{ $doctor->name }}
-                                                            </option>
-                                                        @endforeach
-                                                    </select>
                                                 </div>
                                             </div>
                                         </div>
@@ -1737,7 +1749,18 @@
                                                     <div class="form-col">
                                                         <label for="given_payment">Paid Amount</label>
                                                         <input type="number" id="given_payment" name="given_payment"
-                                                            placeholder="Enter amount paid" step="0.01" readonly style="background-color: #f8f9fa;">
+                                                            placeholder="Enter amount paid" step="0.01">
+                                                    </div>
+                                                </div>
+                                                <div class="form">
+                                                    <div class="form-col">
+                                                        <label for="payment_method">Payment Method</label>
+                                                        <select id="payment_method" name="payment_method">
+                                                            <option value="">Select Type</option>
+                                                            <option value="Cash">Cash</option>
+                                                            <option value="Online">Online</option>
+                                                            <option value="Cheque">Cheque</option>
+                                                        </select>
                                                     </div>
                                                 </div>
                                                 <div class="form">
@@ -1745,30 +1768,6 @@
                                                         <label for="due_payment">Due Amount</label>
                                                         <input type="number" id="due_payment" name="due_payment"
                                                             readonly value="0">
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div class="pro_filed pt-3" style="flex-wrap: wrap;">
-                                                <div class="form">
-                                                    <div class="form-col">
-                                                        <label for="cash_payment">Cash Payment</label>
-                                                        <input type="number" id="cash_payment" name="cash_payment"
-                                                            placeholder="Cash Payment" step="0.01">
-                                                    </div>
-                                                </div>
-                                                <div class="form">
-                                                    <div class="form-col">
-                                                        <label for="gp_payment">Google Pay</label>
-                                                        <input type="number" id="gp_payment" name="gp_payment"
-                                                            placeholder="Google Pay" step="0.01">
-                                                    </div>
-                                                </div>
-                                                <div class="form">
-                                                    <div class="form-col">
-                                                        <label for="cheque_payment">Cheque Payment</label>
-                                                        <input type="number" id="cheque_payment" name="cheque_payment"
-                                                            placeholder="Cheque Payment" step="0.01">
                                                     </div>
                                                 </div>
                                             </div>
@@ -1977,19 +1976,6 @@
                                                 calculateDue();
                                             }
 
-                                            function calculateGiven() {
-                                                const cashInput = document.getElementById('cash_payment');
-                                                const gpayInput = document.getElementById('gp_payment');
-                                                const chequeInput = document.getElementById('cheque_payment');
-                                                
-                                                const cash = parseFloat(cashInput?.value) || 0;
-                                                const gpay = parseFloat(gpayInput?.value) || 0;
-                                                const cheque = parseFloat(chequeInput?.value) || 0;
-                                                
-                                                if (givenPaymentInput) givenPaymentInput.value = (cash + gpay + cheque).toFixed(2);
-                                                calculateDue();
-                                            }
-
                                             function calculateDue() {
                                                 const total = parseFloat(totalPaymentInput?.value) || 0;
                                                 const discount = parseFloat(document.getElementById('discount_payment')?.value) || 0;
@@ -1998,9 +1984,7 @@
                                             }
 
                                             document.getElementById('discount_payment')?.addEventListener('input', calculateDue);
-                                            document.getElementById('cash_payment')?.addEventListener('input', calculateGiven);
-                                            document.getElementById('gp_payment')?.addEventListener('input', calculateGiven);
-                                            document.getElementById('cheque_payment')?.addEventListener('input', calculateGiven);
+                                            givenPaymentInput?.addEventListener('input', calculateDue);
 
                                             // FOC checkbox functionality
                                             if (focCheckbox && paymentSection) {

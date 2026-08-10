@@ -201,6 +201,22 @@
             padding-bottom: 2px;
         }
 
+        .pagination .page-item.active .page-link {
+            background-color: #006637 !important;
+            border-color: #006637 !important;
+            color: white !important;
+        }
+        .pagination .page-link {
+            color: #006637;
+            border-radius: 6px;
+            margin: 0 2px;
+            font-size: 13px;
+        }
+        .pagination .page-link:hover {
+            background-color: #e9f7ef;
+            color: #004d2a;
+        }
+
         @media (max-width: 768px) {
             .header-row {
                 flex-direction: column;
@@ -362,6 +378,30 @@
 
         .date-slot-header input::placeholder {
             color: rgba(255, 255, 255, 0.7);
+        }
+
+        .date-slot-vitals-input {
+            background: #ffffff !important;
+            border: 1px solid #ced4da !important;
+            color: #212529 !important;
+            border-radius: 6px !important;
+            padding: 4px 8px !important;
+            font-size: 12px !important;
+            font-weight: 500 !important;
+        }
+
+        .date-slot-vitals-input::placeholder {
+            color: #6c757d !important;
+            opacity: 1 !important;
+            font-size: 11px !important;
+        }
+
+        .date-slot-vitals-input:focus {
+            background: #ffffff !important;
+            border-color: #006637 !important;
+            color: #212529 !important;
+            outline: none !important;
+            box-shadow: 0 0 0 2px rgba(0, 102, 55, 0.25) !important;
         }
 
         .slot-at-separator {
@@ -581,32 +621,71 @@
 
     <div class="search-section">
         <form method="GET" action="{{ route('indoor.patients') }}" id="searchForm">
-            <div class="dual-search-container">
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <input type="text" name="global_search" class="search-input"
-                        placeholder="Search by name, ID, diagnosis, address, age..."
-                        value="{{ request('global_search') }}" id="globalSearchInput"
-                        autocomplete="off" style="width: 350px;">
-                    <button type="button" id="clearSearchBtn" title="Clear search"
-                        style="background:#e9ecef; border:1px solid #ced4da; border-radius:4px; cursor:pointer; color:#555; font-size:14px; padding:6px 10px; display:{{ request('global_search') ? 'flex' : 'none' }}; align-items:center; gap:4px; flex-shrink:0;">
-                        <i class="bi bi-x-lg"></i> Clear
-                    </button>
+            <div class="dual-search-container d-flex justify-content-between align-items-center flex-wrap">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <input type="text" name="global_search" class="search-input"
+                            placeholder="Search by name, ID, diagnosis, address, age..."
+                            value="{{ request('global_search') }}" id="globalSearchInput"
+                            autocomplete="off" style="width: 350px;">
+                        <button type="button" id="clearSearchBtn" title="Clear search"
+                            style="background:#e9ecef; border:1px solid #ced4da; border-radius:4px; cursor:pointer; color:#555; font-size:14px; padding:6px 10px; display:{{ request('global_search') ? 'flex' : 'none' }}; align-items:center; gap:4px; flex-shrink:0;">
+                            <i class="bi bi-x-lg"></i> Clear
+                        </button>
+                    </div>
+                    <div style="width: 150px;">
+                        <label class="search-label">Show</label>
+                        <select name="per_page" class="form-select form-select-sm" onchange="this.form.submit()">
+                            <option value="10" {{ request('per_page') == 10 ? 'selected' : '' }}>10 entries</option>
+                            <option value="25" {{ request('per_page') == 25 ? 'selected' : '' }}>25 entries</option>
+                            <option value="50" {{ request('per_page') == 50 ? 'selected' : '' }}>50 entries</option>
+                        </select>
+                    </div>
+                    <div style="margin-top: 25px;">
+                        <button type="submit" class="btn btn-primary" style="background-color: #006637; border: none;">
+                            <i class="bi bi-search"></i> Search
+                        </button>
+                    </div>
                 </div>
-                <div style="width: 150px;">
-                    <label class="search-label">Show</label>
-                    <select name="per_page" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="10" {{ request('per_page') == 10 ? 'selected' : '' }}>10 entries</option>
-                        <option value="25" {{ request('per_page') == 25 ? 'selected' : '' }}>25 entries</option>
-                        <option value="50" {{ request('per_page') == 50 ? 'selected' : '' }}>50 entries</option>
-                    </select>
-                </div>
+
+                <!-- Right Side Action Button (Red Box Location in Screenshot) -->
                 <div style="margin-top: 25px;">
-                    <button type="submit" class="btn btn-primary" style="background-color: #006637; border: none;">
-                        <i class="bi bi-search"></i> Search
+                    <button type="button" class="btn text-white fw-bold px-3 py-2" style="background-color: #006637; border-radius: 6px; font-size: 14px;" onclick="openSelectPatientModal()">
+                        <i class="bi bi-plus-circle me-1"></i> Indoor Patient
                     </button>
                 </div>
             </div>
         </form>
+    </div>
+
+    <!-- Select Indoor Patient Modal -->
+    <div class="modal fade" id="selectPatientModal" tabindex="-1" aria-labelledby="selectPatientModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header text-white" style="background-color: #006637;">
+                    <h5 class="modal-title fw-bold" id="selectPatientModalLabel">
+                        <i class="bi bi-hospital me-2"></i> Select Indoor Patient
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <label class="form-label fw-bold text-dark mb-2">Select Patient to Open Indoor Treatment Page:</label>
+                    <select id="select_indoor_patient_id" class="form-select form-select-lg border-success" style="font-size: 15px;">
+                        <option value="">-- Choose Indoor Patient --</option>
+                        @foreach($patients as $p)
+                            <option value="{{ $p->id }}">{{ $p->patient_id }} - {{ $p->patient_name }} @if($p->diagnosis) ({{ $p->diagnosis }}) @endif</option>
+                        @endforeach
+                    </select>
+                    <div class="text-danger small mt-2" id="select-patient-error" style="display: none;">Please select a patient from the list.</div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn text-white fw-bold px-4" style="background-color: #006637;" onclick="goToIndoorTreatmentPage()">
+                        Open Treatment Page <i class="bi bi-arrow-right me-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     {{-- Live search results container --}}
@@ -701,202 +780,217 @@
     })();
     </script>
 
-    <div class="table-responsive">
-        <table class="patient-table">
-            <thead>
-                <tr>
-                    <th>Profile</th>
-                    <th>Patient Id</th>
-                    <th>Name</th>
-                    <th>Address</th>
-                    <th>Age</th>
-                    <th>Diagnosis</th>
-                    <th>Inquiry Date</th>
-                    <th>Added On</th>
-                    <th>Status</th>
-                    <th style="text-align: center;">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($patients as $patient)
-                            <tr>
-                                <td class="profile-icon">
-                                    @php
-                                        $profileImage = $patient->getMeta('profile_image');
-                                    @endphp
-                                    <a href="{{ route('ipd.profile', $patient->id) }}" title="View Profile">
-                                        @if ($profileImage && file_exists(public_path($profileImage)))
-                                            <img src="{{ asset($profileImage) }}" alt="Profile"
-                                                style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
-                                        @else
-                                            <i class="far fa-address-card"></i>
-                                        @endif
-                                    </a>
-                                </td>
-                                {{-- <td style="font-weight: 600; color: #006637;">{{ $patient->patient_id }}</td> --}}
-                                <td class="patient_id">
-                                    <a href="{{ route('ipd.profile', $patient->id) }}" style="color: #28a745; text-decoration: none;"
-                                        title="View Profile">
-                                        {{ $patient->patient_id }}
-                                    </a>
-                                </td>
-                                <td>{{ $patient->patient_name }}</td>
-                                <td>{{ $patient->address }}</td>
-                                <td>{{ $patient->age }}</td>
-                                <td>
-                                    @if($patient->diagnosis)
-                                        @php
-                                            $diagnoses = explode(', ', $patient->diagnosis);
-                                            $diagnoses = array_filter($diagnoses);
-                                            if (!empty($diagnoses)) {
-                                                echo '<span class="badge bg-info me-1">' . implode('</span><span class="badge bg-info me-1">', array_slice($diagnoses, 0, 3)) . '</span>';
-                                                if (count($diagnoses) > 3) {
-                                                    echo '<span class="badge bg-secondary">+' . (count($diagnoses) - 3) . ' more</span>';
-                                                }
-                                            }
-                                        @endphp
-                                    @else
-                                        -
-                                    @endif
-                                </td>
-                                <td>{{ $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->format('d/m/Y') : '-' }}
-                                </td>
-                                <td>{{ $patient->created_at->format('d/m/Y') }}</td>
-                                <td><span class="badge-ipd">Indoor (IPD)</span></td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button type="button" class="action-btn btn-profile-square" onclick="openIndoorModal({{ json_encode([
-                        'id' => $patient->id,
-                        'name' => $patient->patient_name,
-                        'age' => $patient->age,
-                        'diagnosis' => $patient->diagnosis ?? 'N/A',
-                        'complaints' => $patient->getMeta('complain') ?? 'N/A',
-                        'treatments' => $patient->treatments
-                    ]) }})" title="Manage Treatment">
-                                            <i class="bi bi-hospital"></i>
-                                        </button>
-                                        <button type="button" class="action-btn btn-profile-square" onclick="openPaymentModal({{ json_encode([
-                        'id' => $patient->id,
-                        'name' => $patient->patient_name,
-                        'patient_id' => $patient->patient_id,
-                        'invoice' => $patient->invoice
-                    ]) }})" title="Payment Details" style="border-color: #28a745; color: #28a745 !important;">
-                                            <i class="fas fa-rupee-sign"></i>
-                                        </button>
-                                        <!-- <a href="{{ route('ipd.profile', $patient->id) }}" class="action-btn btn-profile-square"
-                                            title="View Profile">
-                                            <i class="fas fa-address-card"></i>
-                                        </a> -->
-                                        <a href="{{ route('edit.svc.inquiry', $patient->id) }}" class="action-btn btn-profile-square"
-                                            title="Edit Inquiry" style="border-color: #007bff; color: #007bff !important;">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                @empty
+    <div id="tableContainer">
+        <div class="table-responsive">
+            <table class="patient-table">
+                <thead>
                     <tr>
-                        <td colspan="9" class="empty-state">
-                            <i class="bi bi-info-circle" style="font-size: 24px; display: block; margin-bottom: 10px;"></i>
-                            No indoor patients found.
-                        </td>
+                        <th>Profile</th>
+                        <th>Patient Id</th>
+                        <th>Name</th>
+                        <th>Address</th>
+                        <th>Age</th>
+                        <th>Diagnosis</th>
+                        <th>Inquiry Date</th>
+                        <th>Added On</th>
+                        <th>Status</th>
+                        <th style="text-align: center;">Actions</th>
                     </tr>
-                @endforelse
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @forelse ($patients as $patient)
+                        <tr>
+                            <td class="profile-icon">
+                                @php
+                                    $profileImage = $patient->getMeta('profile_image');
+                                @endphp
+                                <a href="{{ route('ipd.profile', $patient->id) }}" title="View Profile">
+                                    @if ($profileImage && file_exists(public_path($profileImage)))
+                                        <img src="{{ asset($profileImage) }}" alt="Profile"
+                                            style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
+                                    @else
+                                        <i class="far fa-address-card"></i>
+                                    @endif
+                                </a>
+                            </td>
+                            <td class="patient_id">
+                                <a href="{{ route('ipd.profile', $patient->id) }}" style="color: #28a745; text-decoration: none;"
+                                    title="View Profile">
+                                    {{ $patient->patient_id }}
+                                </a>
+                            </td>
+                            <td class="fw-bold">{{ $patient->patient_name }}</td>
+                            <td>{{ $patient->address }}</td>
+                            <td>{{ $patient->age }}</td>
+                            <td>
+                                @if($patient->diagnosis)
+                                    @php
+                                        $diagnoses = explode(', ', $patient->diagnosis);
+                                        $diagnoses = array_filter($diagnoses);
+                                        if (!empty($diagnoses)) {
+                                            echo '<span class="badge bg-info me-1">' . implode('</span><span class="badge bg-info me-1">', array_slice($diagnoses, 0, 3)) . '</span>';
+                                            if (count($diagnoses) > 3) {
+                                                echo '<span class="badge bg-secondary">+' . (count($diagnoses) - 3) . ' more</span>';
+                                            }
+                                        }
+                                    @endphp
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            <td>{{ $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->format('d/m/Y') : '-' }}</td>
+                            <td>{{ $patient->created_at->format('d/m/Y') }}</td>
+                            <td><span class="badge-ipd">Indoor (IPD)</span></td>
+                            <td>
+                                <div class="action-buttons">
+                                    <a href="{{ route('svc.profile.add-indoor-treatment', $patient->id) }}" class="action-btn btn-profile-square" title="Indoor Treatment" style="border-color: #006637; color: #006637 !important;">
+                                        <i class="bi bi-hospital"></i>
+                                    </a>
+                                    <button type="button" class="action-btn btn-profile-square" onclick="openPaymentModal({{ json_encode([
+                                        'id' => $patient->id,
+                                        'name' => $patient->patient_name,
+                                        'patient_id' => $patient->patient_id,
+                                        'invoice' => $patient->invoice
+                                    ]) }})" title="Payment Details" style="border-color: #28a745; color: #28a745 !important;">
+                                        <i class="fas fa-rupee-sign"></i>
+                                    </button>
+                                    <a href="{{ route('edit.svc.inquiry', $patient->id) }}" class="action-btn btn-profile-square"
+                                        title="Edit Inquiry" style="border-color: #007bff; color: #007bff !important;">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="10" class="empty-state">
+                                <i class="bi bi-info-circle" style="font-size: 24px; display: block; margin-bottom: 10px;"></i>
+                                No indoor patients found.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        @if ($patients->hasPages() || $patients->total() > 0)
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mt-4 px-1">
+                <div class="text-muted small fw-medium">
+                    Showing {{ $patients->firstItem() ?? 0 }} to {{ $patients->lastItem() ?? 0 }} of {{ $patients->total() }} indoor patients
+                </div>
+                <div>
+                    {{ $patients->links('pagination::bootstrap-5') }}
+                </div>
+            </div>
+        @endif
     </div>
 
-    @if ($patients->hasPages())
-        <div class="pagination">
-            <div>
-                Showing {{ $patients->firstItem() }} to {{ $patients->lastItem() }} of {{ $patients->total() }} patients
-            </div>
-            <div class="pagination-buttons">
-                @if ($patients->onFirstPage())
-                    <span class="btn" disabled>Previous</span>
-                @else
-                    <a href="{{ $patients->previousPageUrl() }}" class="btn">Previous</a>
-                @endif
+    <script>
+    (function() {
+        const searchInput = document.getElementById('globalSearchInput');
+        const clearBtn = document.getElementById('clearSearchBtn');
+        const perPageSelect = document.querySelector('select[name="per_page"]');
+        const searchForm = document.getElementById('searchForm');
+        let debounceTimer = null;
 
-                @if ($patients->hasMorePages())
-                    <a href="{{ $patients->nextPageUrl() }}" class="btn">Next</a>
-                @else
-                    <span class="btn" disabled>Next</span>
-                @endif
-            </div>
-        </div>
-    @endif
+        function toggleClearBtn() {
+            if (clearBtn) {
+                clearBtn.style.display = searchInput && searchInput.value.trim() ? 'flex' : 'none';
+            }
+        }
 
-    {{-- Indoor Treatment Modal --}}
-    <div class="modal fade" id="indoorTreatmentModal" tabindex="-1" aria-labelledby="indoorTreatmentModalLabel"
-        aria-hidden="true">
- <div class="modal-dialog modal-xl modal-dialog-centered">
-            <div class="modal-content">
-                <form action="" method="POST" id="indoorTreatmentForm">
-                    @csrf
+        function fetchResults(url = null) {
+            const query = searchInput ? searchInput.value.trim() : '';
+            const perPage = perPageSelect ? perPageSelect.value : 10;
+            
+            let targetUrl = url;
+            if (!targetUrl) {
+                const baseUrl = searchForm ? searchForm.action : window.location.pathname;
+                const params = new URLSearchParams();
+                if (query) params.set('global_search', query);
+                if (perPage) params.set('per_page', perPage);
+                targetUrl = baseUrl + (params.toString() ? '?' + params.toString() : '');
+            }
 
-                    {{-- Modal Header --}}
-                    <div class="modal-header" style="background-color: #006637; color: white;">
-                        <h5 class="modal-title" id="indoorTreatmentModalLabel" style="color: white;">
-                            <i class="bi bi-hospital-fill"></i> Manage Indoor Treatment Logs
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
+            const tableContainer = document.getElementById('tableContainer');
+            if (tableContainer) {
+                tableContainer.style.opacity = '0.5';
+            }
 
-                    {{-- Modal Body --}}
-                    <div class="modal-body">
+            fetch(targetUrl, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' }
+            })
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newContainer = doc.getElementById('tableContainer');
+                if (newContainer && tableContainer) {
+                    tableContainer.innerHTML = newContainer.innerHTML;
+                    tableContainer.style.opacity = '1';
+                    attachPaginationListeners();
+                } else if (tableContainer) {
+                    tableContainer.style.opacity = '1';
+                }
+                window.history.replaceState(null, '', targetUrl);
+            })
+            .catch(err => {
+                if (tableContainer) tableContainer.style.opacity = '1';
+                console.error('Live search error:', err);
+            });
+        }
 
-                        {{-- Patient Info --}}
-                        <div class="indoor-patient-info mb-4" style="background: #f8f9fa; border-left: 4px solid #006637; padding: 15px; border-radius: 6px;">
-                            <div class="row g-3">
-                                <div class="col-md-3"><strong>Name:</strong> <span id="modal-patient-name"></span></div>
-                                <div class="col-md-2"><strong>Age:</strong> <span id="modal-patient-age"></span></div>
-                                <div class="col-md-3"><strong>Diagnosis:</strong> <span id="modal-patient-diagnosis"></span></div>
-                                <div class="col-md-4"><strong>Complaints:</strong> <span id="modal-patient-complaints"></span></div>
-                            </div>
-                        </div>
+        function attachPaginationListeners() {
+            const container = document.getElementById('tableContainer');
+            if (!container) return;
+            const links = container.querySelectorAll('.pagination a');
+            links.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    fetchResults(this.href);
+                });
+            });
+        }
 
-                        {{-- Section: Treatment History --}}
-                        <div class="mb-4">
-                            <h6 class="d-flex align-items-center gap-2 mb-3" style="color: #006637; font-weight: 700; border-bottom: 2px solid #e9ecef; padding-bottom: 8px;">
-                                <i class="fas fa-history"></i> Past Treatment History
-                            </h6>
-                            <div id="indoorHistoryContainer">
-                                <!-- Loaded dynamically via JS -->
-                            </div>
-                        </div>
+        if (searchInput) {
+            toggleClearBtn();
+            searchInput.addEventListener('input', function() {
+                toggleClearBtn();
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    fetchResults();
+                }, 200);
+            });
+        }
 
-                        {{-- Section: Add New Treatment Entry --}}
-                        <div>
-                            <div class="d-flex justify-content-between align-items-center mb-3" style="border-bottom: 2px solid #e9ecef; padding-bottom: 8px;">
-                                <h6 class="m-0" style="color: #006637; font-weight: 700;">
-                                    <i class="bi bi-plus-circle-fill"></i> Add New Treatment Entry
-                                </h6>
-                                <button type="button" class="add-slot-btn btn btn-sm" onclick="addIndoorDateSlot()" style="background-color: #006637; color: white;">
-                                    <i class="bi bi-plus-lg"></i> Add Another Slot
-                                </button>
-                            </div>
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                if (searchInput) {
+                    searchInput.value = '';
+                    toggleClearBtn();
+                    searchInput.focus();
+                }
+                fetchResults();
+            });
+        }
 
-                            {{-- Slots Container --}}
-                            <div id="indoorSlotsContainer">
-                                <!-- Empty slots added dynamically -->
-                            </div>
-                        </div>
+        if (perPageSelect) {
+            perPageSelect.addEventListener('change', function(e) {
+                e.preventDefault();
+                fetchResults();
+            });
+        }
 
-                    </div>
+        if (searchForm) {
+            searchForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                fetchResults();
+            });
+        }
 
-                    {{-- Modal Footer --}}
-                    <div class="modal-footer justify-content-end gap-2" style="background-color: #f8f9fa;">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        <button type="submit" class="btn-save-indoor btn btn-primary" style="background-color: #006637; border-color: #006637;">
-                            <i class="bi bi-check-lg me-1"></i> Submit New Logs
-                        </button>
-                    </div>
-
-                </form>
-            </div>
-        </div>
-    </div>
+        attachPaginationListeners();
+    })();
+    </script>
 
     {{-- Payment Details Modal --}}
     <div class="modal fade" id="paymentDetailsModal" tabindex="-1" aria-labelledby="paymentDetailsModalLabel" aria-hidden="true">
@@ -1053,11 +1147,25 @@
                         </div>
                     `).join('');
 
+                    const firstMed = medicines[0] || {};
+                    let vitalsHtml = '';
+                    if (firstMed.temp || firstMed.pulse || firstMed.bp || firstMed.spo2) {
+                        vitalsHtml = `<div class="d-flex flex-wrap gap-1 ms-2 me-2" style="font-size: 11px;">
+                            ${firstMed.temp ? `<span class="badge bg-white text-dark border">Temp: ${firstMed.temp}</span>` : ''}
+                            ${firstMed.pulse ? `<span class="badge bg-white text-dark border">Pulse: ${firstMed.pulse}</span>` : ''}
+                            ${firstMed.bp ? `<span class="badge bg-white text-dark border">BP: ${firstMed.bp}</span>` : ''}
+                            ${firstMed.spo2 ? `<span class="badge bg-white text-dark border">SpO2: ${firstMed.spo2}</span>` : ''}
+                        </div>`;
+                    }
+
                     historyCard.innerHTML = `
-                        <div class="card-header py-1 px-3 d-flex justify-content-between align-items-center" style="background: #f8f9fa; border-bottom: none;">
-                            <span style="font-size: 12px; font-weight: 600; color: #006637;">
-                                <i class="bi bi-calendar-event me-1"></i> ${displayDate} &nbsp;|&nbsp; <i class="bi bi-clock me-1"></i> ${displayTime}
-                            </span>
+                        <div class="card-header py-1 px-3 d-flex flex-wrap justify-content-between align-items-center" style="background: #f8f9fa; border-bottom: none;">
+                            <div class="d-flex align-items-center gap-2">
+                                <span style="font-size: 12px; font-weight: 600; color: #006637;">
+                                    <i class="bi bi-calendar-event me-1"></i> ${displayDate} &nbsp;|&nbsp; <i class="bi bi-clock me-1"></i> ${displayTime}
+                                </span>
+                                ${vitalsHtml}
+                            </div>
                             <span class="badge bg-light text-dark border">${medicines.length} ${medicines.length === 1 ? 'item' : 'items'}</span>
                         </div>
                         <div class="card-body py-2 px-3">
@@ -1105,11 +1213,17 @@
             const medsToRender = medicines.length > 0 ? medicines : [{medicine: '', note: ''}];
 
             slot.innerHTML = `
-                    <div class="date-slot-header d-flex align-items-center gap-2 mb-3 pb-2" style="border-bottom: 1px solid #dee2e6;">
+                    <div class="date-slot-header d-flex flex-wrap align-items-center gap-2 mb-3 pb-2" style="border-bottom: 1px solid #dee2e6;">
                         <label style="font-weight: 600; font-size: 13px; color: #495057;">Date &amp; Time:</label>
                         <input type="date" class="form-control form-control-sm w-auto" name="slot_date[${indexToUse}]" value="${date}" required>
                         <span class="slot-at-separator">@</span>
                         <input type="time" class="form-control form-control-sm w-auto" name="slot_time[${indexToUse}]" value="${time}">
+                        <div class="d-flex align-items-center gap-1 ms-2">
+                            <input type="text" class="date-slot-vitals-input" name="slot_temp[${indexToUse}]" placeholder="Temp (°F)" title="Temperature (°F)" style="width: 90px;">
+                            <input type="text" class="date-slot-vitals-input" name="slot_pulse[${indexToUse}]" placeholder="Pulse (bpm)" title="Pulse (bpm)" style="width: 90px;">
+                            <input type="text" class="date-slot-vitals-input" name="slot_bp[${indexToUse}]" placeholder="BP (mmHg)" title="Blood Pressure" style="width: 90px;">
+                            <input type="text" class="date-slot-vitals-input" name="slot_spo2[${indexToUse}]" placeholder="SpO2 (%)" title="SpO2 (%)" style="width: 90px;">
+                        </div>
                         <button type="button" class="btn btn-sm btn-outline-danger ms-auto d-flex align-items-center gap-1" onclick="removeIndoorSlot(this)" style="padding: 2px 8px; font-size: 12px;">
                             <i class="bi bi-trash"></i> Drop Slot
                         </button>
@@ -1246,5 +1360,24 @@
             });
         });
 
+        function openSelectPatientModal() {
+            const modalEl = document.getElementById('selectPatientModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+        }
+
+        function goToIndoorTreatmentPage() {
+            const select = document.getElementById('select_indoor_patient_id');
+            const patientId = select ? select.value : '';
+            const errorEl = document.getElementById('select-patient-error');
+            if (!patientId) {
+                if (errorEl) errorEl.style.display = 'block';
+                return;
+            }
+            if (errorEl) errorEl.style.display = 'none';
+            window.location.href = '/svc-profile/' + patientId + '/add-indoor-treatment';
+        }
     </script>
 @endsection

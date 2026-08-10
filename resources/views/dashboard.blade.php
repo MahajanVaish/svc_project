@@ -15,21 +15,38 @@
                             <div class="d-flex align-items-center gap-2">
                                 <label for="globalStatusFilter" class="mb-0 text-muted small fw-bold text-nowrap">Filter Status:</label>
                                 <select id="globalStatusFilter" class="form-select form-select-sm" style="width: 180px; border-radius: 6px; border: 1px solid #ced4da;">
-                                    <option value="all">All Patients</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="joined">Joined</option>
-                                    <option value="diet_chart">Diet Chart</option>
-                                    <option value="online_abroad">Online / Abroad</option>
+                                    @php
+                                        $userBranch = auth()->user()->user_branch ?? '';
+                                        $isSvcBranch = ($userBranch === 'SVC-0005' || $userBranch === 'SVC' || request()->is('svc*') || (isset($branches) && $branches->count() === 1 && str_contains($branches->first()->branch_name ?? '', 'SVC')));
+                                    @endphp
+                                    @if($isSvcBranch)
+                                        <option value="all">All Patients</option>
+                                        <option value="new_patient">New Patient</option>
+                                        <option value="old_patient">Old Patient</option>
+                                        <option value="followup">Followup</option>
+                                        <option value="ipd">IPD</option>
+                                    @else
+                                        <option value="all">All Patients</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="joined">Joined</option>
+                                        <option value="diet_chart">Diet Chart</option>
+                                        <option value="online_abroad">Online / Abroad</option>
+                                    @endif
                                 </select>
                             </div>
                         </div>
-                        @auth
-                            @if(auth()->user()->hasRole('Superadmin'))
-                                <a href="{{ route('followup.calendar') }}" class="fnf-btn btn btn-primary calander_btn">
-                                    <i class="bi bi-calendar3"></i> Follow Up Calendar
-                                </a>
-                            @endif
-                        @endauth
+                        <div class="d-flex align-items-center gap-2">
+                            <a href="{{ route('financial.dashboard') }}" class="btn btn-sm text-white fw-bold d-inline-flex align-items-center gap-2 shadow-sm" style="background: linear-gradient(135deg, #006637, #10b981); border-radius: 8px; padding: 7px 16px; font-size: 13px;">
+                                <i class="bi bi-graph-up-arrow"></i> Financial Dashboard
+                            </a>
+                            @auth
+                                @if(auth()->user()->hasRole('Superadmin'))
+                                    <a href="{{ route('followup.calendar') }}" class="fnf-btn btn btn-primary calander_btn">
+                                        <i class="bi bi-calendar3"></i> Follow Up Calendar
+                                    </a>
+                                @endif
+                            @endauth
+                        </div>
                     </div>
                 </div>
             </div>
@@ -93,7 +110,7 @@
                                     <div>
                                         <label class="filter-label">To</label>
                                         <input type="date" class="form-control form-control-sm list-to"
-                                            value="{{ now()->format('Y-m-d') }}">
+                                            value="{{ now()->endOfMonth()->format('Y-m-d') }}">
                                     </div>
                                     <div>
                                         <label class="filter-label">Group by</label>
@@ -450,6 +467,10 @@ $(function () {
                 else if (status === 'joined') statusLabel = 'Joined';
                 else if (status === 'diet_chart') statusLabel = 'Diet Chart';
                 else if (status === 'online_abroad') statusLabel = 'Online/Abroad';
+                else if (status === 'new_patient') statusLabel = 'New Patients';
+                else if (status === 'old_patient') statusLabel = 'Old Patients';
+                else if (status === 'followup') statusLabel = 'Followup Patients';
+                else if (status === 'ipd') statusLabel = 'IPD Patients';
 
                 resultsBox.find(".summary-total").text(res.total + " " + statusLabel);
 
