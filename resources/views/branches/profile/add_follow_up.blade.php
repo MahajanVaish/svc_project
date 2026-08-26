@@ -718,9 +718,10 @@
                                                         @empty
                                                             <div>
                                                                 <select name="pt_status[]" class="dynamic-field-input form-control">
-                                                                    <option value="IPD">IPD</option>
-                                                                    <option value="OPD" selected>OPD</option>
-                                                                    <option value="Home Visit">Home Visit</option>
+                                                                    @php $currentStatus = $patient->getMeta('pt_status'); @endphp
+                                                                    <option value="IPD" {{ $currentStatus == 'IPD' ? 'selected' : '' }}>IPD</option>
+                                                                    <option value="OPD" {{ $currentStatus == 'OPD' || empty($currentStatus) ? 'selected' : '' }}>OPD</option>
+                                                                    <option value="Home Visit" {{ $currentStatus == 'Home Visit' ? 'selected' : '' }}>Home Visit</option>
                                                                 </select>
                                                             </div>
                                                         @endforelse

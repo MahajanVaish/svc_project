@@ -1461,11 +1461,22 @@
                                 $initialDue = $patient->getMeta('due_payment');
                                 $initialGp = $patient->getMeta('gp_payment');
                                 $initialCheque = $patient->getMeta('cheque_payment');
-                                $hasInitialPaymentData = $initialCash || $initialTotal || $initialDiscount || $initialGiven || $initialDue || $initialGp || $initialCheque;
+                                $initialMethodMeta = $patient->getMeta('payment_method');
+                                $hasInitialPaymentData = $initialCash || $initialTotal || $initialDiscount || $initialGiven || $initialDue || $initialGp || $initialCheque || $initialMethodMeta;
                                 if ($hasInitialPaymentData) {
+                                    $initialMethod = '';
+                                    if ($initialCash) {
+                                        $initialMethod = 'Cash: ' . $initialCash;
+                                    } elseif ($initialGp) {
+                                        $initialMethod = 'GPay: ' . $initialGp;
+                                    } elseif ($initialCheque) {
+                                        $initialMethod = 'Cheque: ' . $initialCheque;
+                                    } else {
+                                        $initialMethod = $initialMethodMeta ?: ($patient->payment_method ?? '');
+                                    }
                                     $allPayments->push([
-                                        'date' => $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->format('d/m/Y') : '',
-                                        'payment_method' => $initialCash ? 'Cash: ' . $initialCash : ($initialGp ? 'GPay: ' . $initialGp : ($initialCheque ? 'Cheque: ' . $initialCheque : '')),
+                                        'date' => $patient->inquiry_date ? \Carbon\Carbon::parse($patient->inquiry_date)->format('d/m/Y') : ($patient->created_at ? \Carbon\Carbon::parse($patient->created_at)->format('d/m/Y') : ''),
+                                        'payment_method' => $initialMethod,
                                         'total' => $initialTotal ?? '',
                                         'discount' => $initialDiscount ?? '',
                                         'given' => $initialGiven ?? '',
@@ -1486,7 +1497,7 @@
                                     $followUpDue = $followUpMetas['due_payment'] ?? '';
                                     $followUpGp = $followUpMetas['gp_payment'] ?? '';
                                     $followUpCheque = $followUpMetas['cheque_payment'] ?? '';
-                                    $hasFollowUpPaymentData = $followUpCash || $followUpTotal || $followUpDiscount || $followUpGiven || $followUpDue || $followUpGp || $followUpCheque;
+                                    $hasFollowUpPaymentData = $followUpCash || $followUpTotal || $followUpDiscount || $followUpGiven || $followUpDue || $followUpGp || $followUpCheque || isset($followUpMetas['payment_method']);
                                     if ($hasFollowUpPaymentData) {
                                         $paymentMethod = '';
                                         if ($followUpCash)
@@ -1495,6 +1506,8 @@
                                             $paymentMethod = 'GPay: ' . $followUpGp;
                                         elseif ($followUpCheque)
                                             $paymentMethod = 'Cheque: ' . $followUpCheque;
+                                        else
+                                            $paymentMethod = $followUpMetas['payment_method'] ?? '';
                                         $allPayments->push([
                                             'date' => $followUp->followup_date ? \Carbon\Carbon::parse($followUp->followup_date)->format('d/m/Y') : '',
                                             'payment_method' => $paymentMethod,
@@ -1506,11 +1519,44 @@
                                         ]);
                                     }
                                 }
-                                $currentPaymentPage = request()->get('payment_page', 1);
-                                $paymentPerPage = 3;
-                                $paymentChunks = $allPayments->chunk($paymentPerPage);
-                                $currentPaymentChunk = $paymentChunks[$currentPaymentPage - 1] ?? collect();
-                                $totalPaymentPages = count($paymentChunks);
+                                // Include Patient Transactions (e.g. Indoor Treatment payments)
+                                 $patientTransactions = \App\Models\PatientTransaction::with('invoice')
+                                     ->where('patient_id', $patient->id)
+                                     ->where('type', 'credit')
+                                     ->orderBy('created_at', 'asc')
+                                     ->get();
+
+                                 foreach ($patientTransactions as $tx) {
+                                     $txMethod = '';
+                                     if (preg_match('/\((.*?)\)/', $tx->description, $matches)) {
+                                         $txMethod = $matches[1];
+                                     } elseif (stripos($tx->description, 'Cash') !== false) {
+                                         $txMethod = 'Cash';
+                                     } elseif (stripos($tx->description, 'Online') !== false || stripos($tx->description, 'GPay') !== false) {
+                                         $txMethod = 'Online';
+                                     } elseif (stripos($tx->description, 'Cheque') !== false) {
+                                         $txMethod = 'Cheque';
+                                     } else {
+                                         $txMethod = 'Cash';
+                                     }
+
+                                     $inv = $tx->invoice;
+                                     $allPayments->push([
+                                         'date' => $tx->created_at ? \Carbon\Carbon::parse($tx->created_at)->format('d/m/Y') : '',
+                                         'payment_method' => $txMethod,
+                                         'total' => $inv ? $inv->total_payment : $tx->amount,
+                                         'discount' => $inv ? $inv->discount : 0,
+                                         'given' => $tx->amount,
+                                         'due' => $inv ? $inv->due_payment : 0,
+                                         'type' => 'transaction'
+                                     ]);
+                                 }
+
+                                 $currentPaymentPage = request()->get('payment_page', 1);
+                                 $paymentPerPage = 10;
+                                 $paymentChunks = $allPayments->chunk($paymentPerPage);
+                                 $currentPaymentChunk = $paymentChunks[$currentPaymentPage - 1] ?? collect();
+                                 $totalPaymentPages = count($paymentChunks);
                             @endphp
 
                             @if($allPayments->count() > 0)

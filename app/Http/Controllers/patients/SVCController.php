@@ -391,11 +391,23 @@ class SVCController extends Controller
                     }
                 }
 
+                $inquiryDateTime = !empty($validated['inquiry_date'])
+                    ? \Carbon\Carbon::parse($validated['inquiry_date'])->format('Y-m-d H:i:s')
+                    : now()->format('Y-m-d H:i:s');
+
                 $validated['patient_id'] = $patientId;
                 $validated['branch_id'] = $branch->branch_id;
                 $validated['branch'] = $branch->branch_name;
+                $validated['created_at'] = $inquiryDateTime;
+                $validated['updated_at'] = $inquiryDateTime;
 
                 $patient = PatientInquiry::create($validated);
+
+                // Ensure created_at and updated_at match inquiry_date exactly
+                $patient->timestamps = false;
+                $patient->created_at = $inquiryDateTime;
+                $patient->updated_at = $inquiryDateTime;
+                $patient->save();
 
                 // Debug: Log the created patient data
                 \Log::info('Patient Created Successfully:', [
@@ -503,6 +515,11 @@ class SVCController extends Controller
                     'other' => ['note'],
                 ];
 
+                // Save pt_status from request if provided
+                if ($request->filled('pt_status')) {
+                    $patient->setMeta('pt_status', $request->input('pt_status'));
+                }
+
                 // Check if any indoor treatment is provided to set IPD status
                 if ($request->has('indoor_medicine')) {
                     $indoorMedicines = $request->input('indoor_medicine', []);
@@ -518,6 +535,12 @@ class SVCController extends Controller
                     }
                 }
 
+                // Update all patient metas timestamps to match inquiryDateTime
+                $patient->metas()->update([
+                    'created_at' => $inquiryDateTime,
+                    'updated_at' => $inquiryDateTime
+                ]);
+
                 foreach ($groups as $type => $fields) {
                     $medicineKey = $type . '_medicine';
 
@@ -530,6 +553,8 @@ class SVCController extends Controller
                                     'followup_id' => null,
                                     'type' => $type,
                                     'medicine' => $medicine,
+                                    'created_at' => $inquiryDateTime,
+                                    'updated_at' => $inquiryDateTime,
                                 ];
 
                                 foreach ($fields as $f) {
@@ -629,7 +654,7 @@ class SVCController extends Controller
 
                     $inquiryDateRaw = $patient->inquiry_date ?? $request->input('inquiry_date');
                     $invoiceDate = !empty($inquiryDateRaw) ? \Carbon\Carbon::parse($inquiryDateRaw)->format('Y-m-d') : now()->format('Y-m-d');
-                    $transactionDate = !empty($inquiryDateRaw) ? \Carbon\Carbon::parse($inquiryDateRaw)->format('Y-m-d H:i:s') : now();
+                    $transactionDate = $inquiryDateTime;
 
                     $invoice = Invoice::create([
                         'branch_id' => $branch->branch_id,
@@ -892,6 +917,21 @@ class SVCController extends Controller
 
             // Handle foc explicitly for checkbox state
             $patient->setMeta('foc', $request->has('foc') ? 'on' : null);
+
+            // Check if any indoor treatment is provided to set IPD status
+            if ($request->has('indoor_medicine')) {
+                $indoorMedicines = $request->input('indoor_medicine', []);
+                $hasIndoor = false;
+                foreach ($indoorMedicines as $med) {
+                    if (!empty(trim($med))) {
+                        $hasIndoor = true;
+                        break;
+                    }
+                }
+                if ($hasIndoor) {
+                    $patient->setMeta('pt_status', 'IPD');
+                }
+            }
 
             // Update or Create Invoice
             $invoice = Invoice::where('patient_id', $patient->id)->first();
@@ -1657,6 +1697,9 @@ class SVCController extends Controller
 
             // Process Payment Information if submitted
             $totalPayment = floatval($request->input('total_payment', 0));
+            if ($totalPayment <= 0 && $request->filled('followup_charges')) {
+                $totalPayment = floatval($request->input('followup_charges', 0));
+            }
             $givenPayment = floatval($request->input('given_payment', 0));
             $discountPayment = floatval($request->input('discount_payment', 0));
             $duePayment = floatval($request->input('due_payment', 0));
@@ -1692,6 +1735,9 @@ class SVCController extends Controller
                 }
 
                 if ($invoice && $givenPayment > 0) {
+                    if ($paymentMethod) {
+                        $patient->setMeta('payment_method', $paymentMethod);
+                    }
                     PatientTransaction::create([
                         'patient_id' => $patient->id,
                         'invoice_id' => $invoice->id,
@@ -1840,8 +1886,13 @@ class SVCController extends Controller
             $patient = PatientInquiry::where('patient_id', $patient_id)->firstOrFail();
             $followup = Followups::findOrFail($followup_id);
 
+            $dateStr = $request->input('followup_date') ?: ($followup->followup_date ? \Carbon\Carbon::parse($followup->followup_date)->format('Y-m-d') : now()->format('Y-m-d'));
+            $timeStr = $request->input('followups_time') ?: '00:00';
+            $followupDateTime = \Carbon\Carbon::parse($dateStr . ' ' . $timeStr)->format('Y-m-d H:i:s');
+
             $followup->update([
                 'followup_date' => $request->followup_date,
+                'updated_at' => $followupDateTime,
             ]);
 
             // Update patient gender and phone core record meta
@@ -1850,6 +1901,26 @@ class SVCController extends Controller
             }
             if ($request->has('phone')) {
                 $patient->setMeta('phone', $request->phone);
+            }
+            if ($request->has('pt_status')) {
+                $ptStatusRaw = $request->input('pt_status');
+                $ptStatus = is_array($ptStatusRaw) ? (current(array_filter($ptStatusRaw)) ?: null) : $ptStatusRaw;
+                if (!empty($ptStatus)) {
+                    $patient->setMeta('pt_status', $ptStatus);
+                }
+            }
+            if ($request->has('indoor_medicine')) {
+                $indoorMedicines = $request->input('indoor_medicine', []);
+                $hasIndoor = false;
+                foreach ($indoorMedicines as $med) {
+                    if (!empty(trim($med))) {
+                        $hasIndoor = true;
+                        break;
+                    }
+                }
+                if ($hasIndoor) {
+                    $patient->setMeta('pt_status', 'IPD');
+                }
             }
             $patient->save(); // Redundant but good practice if setMeta doesn't save (but it does via updateOrCreate)
 
@@ -1894,6 +1965,12 @@ class SVCController extends Controller
                 }
             }
 
+            // Update all followup metas timestamps to match followupDateTime
+            $followup->metas()->update([
+                'created_at' => $followupDateTime,
+                'updated_at' => $followupDateTime
+            ]);
+
             PatientTreatment::where('followup_id', $followup->id)->delete();
 
             $groups = [
@@ -1915,6 +1992,8 @@ class SVCController extends Controller
                                 'patient_id' => $patient->patient_id,
                                 'type' => $type,
                                 'medicine' => trim($medicine),
+                                'created_at' => $followupDateTime,
+                                'updated_at' => $followupDateTime,
                             ];
 
                             foreach ($fields as $f) {
@@ -2534,6 +2613,10 @@ class SVCController extends Controller
         try {
             $patient = PatientInquiry::where('patient_id', $patient_id)->firstOrFail();
 
+            $dateStr = $request->input('followup_date') ?: now()->format('Y-m-d');
+            $timeStr = $request->input('followups_time') ?: '00:00';
+            $followupDateTime = \Carbon\Carbon::parse($dateStr . ' ' . $timeStr)->format('Y-m-d H:i:s');
+
             // Check if a followup already exists for this date and time
             $existingFollowups = Followups::with('metas')
                 ->where('patient_id', $patient->patient_id)
@@ -2554,7 +2637,7 @@ class SVCController extends Controller
                 $followup = $existingFollowup;
                 $followup->doctor_id = $request->doctor_id;
                 $followup->next_follow_date = $request->next_follow_date;
-                $followup->updated_at = now();
+                $followup->updated_at = $followupDateTime;
                 $followup->save();
             } else {
                 // Create new followup
@@ -2564,8 +2647,8 @@ class SVCController extends Controller
                     'doctor_id' => $request->doctor_id,
                     'followup_date' => $request->followup_date,
                     'next_follow_date' => $request->next_follow_date,
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'created_at' => $followupDateTime,
+                    'updated_at' => $followupDateTime,
                 ]);
             }
 
@@ -2576,8 +2659,33 @@ class SVCController extends Controller
                 FollowupMeta::create([
                     'followup_id' => $followup->id,
                     'meta_key' => 'followups_time',
-                    'meta_value' => $request->followups_time
+                    'meta_value' => $request->followups_time,
+                    'created_at' => $followupDateTime,
+                    'updated_at' => $followupDateTime,
                 ]);
+            }
+
+            // Update master patient record status if pt_status is passed in follow-up
+            if ($request->has('pt_status')) {
+                $ptStatusRaw = $request->input('pt_status');
+                $ptStatus = is_array($ptStatusRaw) ? (current(array_filter($ptStatusRaw)) ?: null) : $ptStatusRaw;
+                if (!empty($ptStatus)) {
+                    $patient->setMeta('pt_status', $ptStatus);
+                }
+            }
+
+            if ($request->has('indoor_medicine')) {
+                $indoorMedicines = $request->input('indoor_medicine', []);
+                $hasIndoor = false;
+                foreach ($indoorMedicines as $med) {
+                    if (!empty(trim($med))) {
+                        $hasIndoor = true;
+                        break;
+                    }
+                }
+                if ($hasIndoor) {
+                    $patient->setMeta('pt_status', 'IPD');
+                }
             }
 
             $excluded = [
@@ -2639,6 +2747,12 @@ class SVCController extends Controller
                 'other' => ['note'],
             ];
 
+            // Update all followup metas timestamps to match followupDateTime
+            $followup->metas()->update([
+                'created_at' => $followupDateTime,
+                'updated_at' => $followupDateTime
+            ]);
+
             foreach ($groups as $type => $fields) {
                 $medicineKey = $type . '_medicine';
 
@@ -2651,6 +2765,8 @@ class SVCController extends Controller
                                 'patient_id' => $patient->patient_id,
                                 'type' => $type,
                                 'medicine' => $medicine,
+                                'created_at' => $followupDateTime,
+                                'updated_at' => $followupDateTime,
                             ];
 
                             foreach ($fields as $f) {

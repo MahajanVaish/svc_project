@@ -342,36 +342,24 @@
 
                                 <div id="payment_section" class="bg-white p-3 rounded border mb-4">
                                     <div class="pro_filed" style="flex-wrap: wrap;">
-                                        <div class="form" style="flex: 2; min-width: 250px;">
+                                        <div class="form">
                                             <div class="form-col">
-                                                <label class="fw-bold">Followup Charges</label>
-                                                <div class="multi-select-container">
-                                                    <div class="selected-items" id="charge-selected">
-                                                        <!-- Selected charges appear here -->
-                                                    </div>
-                                                    <div class="autocomplete-container d-flex gap-2">
-                                                        <input type="text" id="charge" placeholder="Select Followup Charges..." class="form-control" autocomplete="off">
-                                                        <button type="button" class="btn btn-outline-primary" id="add-custom-charge">
-                                                            <i class="fas fa-plus"></i>
-                                                        </button>
-                                                        <div class="autocomplete-dropdown" id="charge-dropdown"></div>
-                                                    </div>
-                                                    <div id="charge-hidden-inputs"></div>
-                                                </div>
+                                                <label for="followup_charges" class="fw-bold">Followup Charges</label>
+                                                <input type="number" id="followup_charges" name="followup_charges" step="0.01" min="0" placeholder="Enter Followup Charges" value="">
                                             </div>
                                         </div>
 
                                         <div class="form">
                                             <div class="form-col">
                                                 <label for="total_payment" class="fw-bold">Total Amount</label>
-                                                <input type="number" id="total_payment" name="total_payment" step="0.01" readonly placeholder="Total" value="{{ $invoice->total_payment ?? 0 }}">
+                                                <input type="number" id="total_payment" name="total_payment" step="0.01" readonly placeholder="Total" value="0">
                                             </div>
                                         </div>
 
                                         <div class="form">
                                             <div class="form-col">
                                                 <label for="discount_payment" class="fw-bold">Discount Amount</label>
-                                                <input type="number" id="discount_payment" name="discount_payment" step="0.01" placeholder="Discount" value="{{ $invoice->discount ?? 0 }}">
+                                                <input type="number" id="discount_payment" name="discount_payment" step="0.01" placeholder="Discount" value="0">
                                             </div>
                                         </div>
 
@@ -396,7 +384,7 @@
                                         <div class="form">
                                             <div class="form-col">
                                                 <label for="due_payment" class="fw-bold">Due Amount</label>
-                                                <input type="number" id="due_payment" name="due_payment" value="{{ $invoice->due_payment ?? 0 }}" readonly>
+                                                <input type="number" id="due_payment" name="due_payment" value="0" readonly>
                                             </div>
                                         </div>
                                     </div>
@@ -422,7 +410,6 @@
 <!-- JavaScript Logic -->
 <script>
 let slotCounter = 1;
-const chargesData = @json($charges ?? []);
 
 document.addEventListener('DOMContentLoaded', function() {
     initPaymentLogic();
@@ -566,11 +553,7 @@ function updateSlotButtons() {
 }
 
 function initPaymentLogic() {
-    const chargeInput = document.getElementById('charge');
-    const chargeDropdown = document.getElementById('charge-dropdown');
-    const chargeSelected = document.getElementById('charge-selected');
-    const chargeHiddenInputs = document.getElementById('charge-hidden-inputs');
-    const addCustomBtn = document.getElementById('add-custom-charge');
+    const followupChargesInput = document.getElementById('followup_charges');
     const totalInput = document.getElementById('total_payment');
     const discountInput = document.getElementById('discount_payment');
     const givenInput = document.getElementById('given_payment');
@@ -583,10 +566,11 @@ function initPaymentLogic() {
         focCheckbox.addEventListener('change', function() {
             if (this.checked) {
                 paymentSection.style.display = 'none';
-                totalInput.value = 0;
-                discountInput.value = 0;
-                givenInput.value = 0;
-                dueInput.value = 0;
+                if (followupChargesInput) followupChargesInput.value = 0;
+                totalInput.value = (0).toFixed(2);
+                discountInput.value = (0).toFixed(2);
+                givenInput.value = (0).toFixed(2);
+                dueInput.value = (0).toFixed(2);
             } else {
                 paymentSection.style.display = 'block';
                 calculateTotals();
@@ -594,114 +578,27 @@ function initPaymentLogic() {
         });
     }
 
-    // Auto-complete dropdown for Charges
-    if (chargeInput) {
-        chargeInput.addEventListener('focus', function() {
-            renderChargeDropdown('');
-        });
-        chargeInput.addEventListener('input', function() {
-            renderChargeDropdown(this.value.trim().toLowerCase());
-        });
-        document.addEventListener('click', function(e) {
-            if (!chargeInput.contains(e.target) && !chargeDropdown.contains(e.target)) {
-                chargeDropdown.classList.remove('show');
-            }
-        });
-    }
-
-    if (addCustomBtn) {
-        addCustomBtn.addEventListener('click', function() {
-            const name = chargeInput.value.trim();
-            if (!name) return;
-            const priceStr = prompt(`Enter price for custom charge "${name}":`, "0");
-            if (priceStr === null) return;
-            const price = parseFloat(priceStr) || 0;
-            addChargeBadge(`custom_${Date.now()}`, name, price, true);
-            chargeInput.value = '';
-            chargeDropdown.classList.remove('show');
-            calculateTotals();
-        });
-    }
-
-    function renderChargeDropdown(filter) {
-        chargeDropdown.innerHTML = '';
-        const filtered = chargesData.filter(c => c.charges_name.toLowerCase().includes(filter));
-        if (filtered.length === 0) {
-            chargeDropdown.innerHTML = '<div class="autocomplete-item text-muted">No charges found</div>';
-        } else {
-            filtered.forEach(c => {
-                const item = document.createElement('div');
-                item.className = 'autocomplete-item d-flex justify-content-between align-items-center';
-                item.innerHTML = `<span>${c.charges_name}</span> <strong class="text-success">₹${c.charges_price}</strong>`;
-                item.addEventListener('click', function() {
-                    addChargeBadge(c.id, c.charges_name, c.charges_price, false);
-                    chargeInput.value = '';
-                    chargeDropdown.classList.remove('show');
-                    calculateTotals();
-                });
-                chargeDropdown.appendChild(item);
-            });
-        }
-        chargeDropdown.classList.add('show');
-    }
-
-    function addChargeBadge(id, name, price, isCustom) {
-        if (document.querySelector(`.charge-hidden[data-id="${id}"]`)) return;
-
-        const badge = document.createElement('div');
-        badge.className = 'selected-item';
-        badge.innerHTML = `
-            <span>${name} (₹${price})</span>
-            <span class="remove-item" onclick="removeChargeBadge(this, '${id}')">&times;</span>
-        `;
-        chargeSelected.appendChild(badge);
-
-        const hidden = document.createElement('input');
-        hidden.type = 'hidden';
-        hidden.className = 'charge-hidden';
-        hidden.dataset.id = id;
-        hidden.dataset.price = price;
-        if (isCustom) {
-            hidden.name = 'custom_charge_name[]';
-            hidden.value = name;
-            const priceHidden = document.createElement('input');
-            priceHidden.type = 'hidden';
-            priceHidden.name = 'custom_charge_price[]';
-            priceHidden.value = price;
-            priceHidden.dataset.id = id;
-            chargeHiddenInputs.appendChild(priceHidden);
-        } else {
-            hidden.name = 'charge_id[]';
-            hidden.value = id;
-        }
-        chargeHiddenInputs.appendChild(hidden);
-        calculateTotals();
-    }
-
-    window.removeChargeBadge = function(el, id) {
-        el.closest('.selected-item').remove();
-        document.querySelectorAll(`[data-id="${id}"]`).forEach(h => h.remove());
-        calculateTotals();
-    };
-
     function calculateTotals() {
-        let total = 0;
-        document.querySelectorAll('.charge-hidden').forEach(h => {
-            total += parseFloat(h.dataset.price || 0);
-        });
-        totalInput.value = total.toFixed(2);
+        const followupCharges = parseFloat(followupChargesInput ? followupChargesInput.value : 0) || 0;
+        totalInput.value = followupCharges.toFixed(2);
 
         const discount = parseFloat(discountInput.value || 0);
         const given = parseFloat(givenInput.value || 0);
-        const due = Math.max(0, total - discount - given);
+        const due = Math.max(0, followupCharges - discount - given);
         dueInput.value = due.toFixed(2);
     }
 
-    [discountInput, givenInput].forEach(inp => {
-        if (inp) {
-            inp.addEventListener('input', calculateTotals);
-        }
-    });
+    if (followupChargesInput) {
+        followupChargesInput.addEventListener('input', calculateTotals);
+    }
+    if (discountInput) {
+        discountInput.addEventListener('input', calculateTotals);
+    }
+    if (givenInput) {
+        givenInput.addEventListener('input', calculateTotals);
+    }
+
+    calculateTotals();
 }
 </script>
 @endsection
